@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # perhr: the per.hr plugin's command for /perhr:start, status, pause, resume and done.
-#   perhr start PAY-214      work on this Plan item
+#   perhr start PAY-214      work on this Plan item (or several: PAY-214:216, PAY-214+PAY-220)
 #   perhr status             your time, agent time and cost so far
 #   perhr pause | resume     stop or restart recording this session
 #   perhr done "summary"     send the session to per.hr for review, with a client-ready summary
@@ -14,7 +14,7 @@ ACTION="$1"; shift || true
 case "$ACTION" in start|status|pause|resume|done) ;; *) echo "Usage: perhr start <ref> | status | pause | resume | done \"summary\""; exit 1 ;; esac
 esc() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' | awk 'BEGIN{ORS="\\n"} {print}' | sed 's/\\n$//'; }
 EXTRA=""
-[ "$ACTION" = "start" ] && EXTRA=",\"ref\":\"$(esc "$1")\""
+[ "$ACTION" = "start" ] && EXTRA=",\"ref\":\"$(esc "$*")\""
 [ "$ACTION" = "done" ] && EXTRA=",\"summary\":\"$(esc "$*")\""
 BODY="{\"action\":\"$ACTION\",\"sessionId\":\"$(esc "$SESSION")\"$EXTRA}"
 printf '%s' "$BODY" | curl -s -m 15 -X POST "$SERVER/api/agent/cli" -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" --data-binary @- -w '\n'

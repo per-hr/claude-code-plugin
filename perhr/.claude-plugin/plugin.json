@@ -1,7 +1,7 @@
 {
   "name": "perhr",
   "displayName": "per.hr",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Log your Claude Code sessions in per.hr: your time, agent time, compute and what shipped, matched to the client, project and Plan item. Only repos you connect in per.hr are recorded; prompts and code are never sent.",
   "author": { "name": "per.hr", "url": "https://per.hr" },
   "homepage": "https://per.hr",

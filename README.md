@@ -22,16 +22,18 @@ Needs `bash`, `git` and `curl` (on Windows, the Git Bash that Claude Code uses).
 
 | Command | What it does |
 | --- | --- |
-| `/perhr:start PAY-214` | Work on a Plan item. Switching items later sends the work so far to To Review on its own. |
+| `/perhr:start PAY-214` | Work on a Plan item, or several: a range `PAY-214:216` or a list `PAY-214+PAY-220`. Switching items later sends the work so far to To Review on its own. |
 | `/perhr:status` | Your time, agent time and cost so far, and how much of the estimate is used. |
 | `/perhr:pause` | Stop recording. `/perhr:resume` starts again. |
 | `/perhr:done` | Send the session to To Review now, with a one-line summary of what shipped. |
 
 A branch named with the reference (for example `feat/pay-214-reset`) attaches the session to that item on its own.
 
+With several items, your time splits by their estimates; you can change the split in To Review before confirming. The plugin's own commands aren't counted as prompts.
+
 ## What's sent
 
-Hook events (session start and end, prompt submitted, turn finished, subagent started and stopped) with the session id, the repo's remote, folder name and branch. Prompts, code and file contents stay on your computer. per.hr discards events from repos you haven't connected.
+Hook events (session start and end, prompt submitted, turn finished, subagent started and stopped) with the session id, the repo's remote, folder name and branch, and whether a prompt was one of the plugin's commands (checked on your computer). Prompts, code and file contents stay on your computer. per.hr discards events from repos you haven't connected.
 
 ## Guide
 
