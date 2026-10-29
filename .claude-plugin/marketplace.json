@@ -1,0 +1,12 @@
+{
+  "name": "perhr",
+  "description": "per.hr for Claude Code",
+  "owner": { "name": "per.hr", "url": "https://per.hr" },
+  "plugins": [
+    {
+      "name": "perhr",
+      "source": "./perhr",
+      "description": "Log your Claude Code sessions in per.hr: your time, agent time, compute and what shipped, matched to the client, project and Plan item."
+    }
+  ]
+}
