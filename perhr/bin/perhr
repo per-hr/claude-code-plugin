@@ -7,6 +7,7 @@
 STATE="$HOME/.perhr"
 [ -f "$STATE/config" ] || { echo "per.hr isn't set up yet: start a Claude Code session in a connected repo first."; exit 1; }
 SERVER="$(sed -n 's/^SERVER=//p' "$STATE/config")"
+SERVER="${SERVER:-https://per.hr}"
 KEY="$(sed -n 's/^KEY=//p' "$STATE/config")"
 TOP="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 SESSION="$(cat "$STATE/sessions/$(printf '%s' "$TOP" | cksum | cut -d' ' -f1)" 2>/dev/null)"

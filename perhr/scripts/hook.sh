@@ -5,7 +5,10 @@
 # The reply is printed only for SessionStart, where Claude Code shows it to Claude as context.
 
 KEY="${CLAUDE_PLUGIN_OPTION_API_KEY:-${CLAUDE_PLUGIN_OPTION_api_key:-}}"
-SERVER="${CLAUDE_PLUGIN_OPTION_SERVER:-${CLAUDE_PLUGIN_OPTION_server:-https://per.hr}}"
+# per.hr's address: always https://per.hr, except PERHR_SERVER for per.hr's own development (and an
+# address saved by plugin versions before 0.2.1, which asked for one)
+SERVER="${PERHR_SERVER:-${CLAUDE_PLUGIN_OPTION_SERVER:-${CLAUDE_PLUGIN_OPTION_server:-}}}"
+SERVER="${SERVER:-https://per.hr}"
 SERVER="${SERVER%/}"
 [ -z "$KEY" ] && exit 0
 command -v curl >/dev/null 2>&1 || exit 0
@@ -36,11 +39,13 @@ BODY="{\"tool\":\"claude-code\",\"command\":$COMMAND,\"remote\":\"$(esc "$REMOTE
 # For the perhr command (/perhr:start, status, pause, resume, done): the key, and this repo's session
 STATE="$HOME/.perhr"
 mkdir -p "$STATE/sessions" 2>/dev/null && chmod 700 "$STATE" 2>/dev/null
-if [ "$EVENT" = "SessionStart" ]; then
-  umask 077
-  printf 'SERVER=%s\nKEY=%s\n' "$SERVER" "$KEY" > "$STATE/config"
-  printf '%s' "$SESSION" > "$STATE/sessions/$(printf '%s' "$TOP" | cksum | cut -d' ' -f1)"
+umask 077
+# Kept current on every event, so a key changed in /plugin is used from the next prompt on
+CONF="$(printf 'SERVER=%s\nKEY=%s\n' "$SERVER" "$KEY")"
+if [ "$(cat "$STATE/config" 2>/dev/null)" != "$CONF" ]; then
+  printf '%s\n' "$CONF" > "$STATE/config.$$" && mv -f "$STATE/config.$$" "$STATE/config"
 fi
+[ "$EVENT" = "SessionStart" ] && printf '%s' "$SESSION" > "$STATE/sessions/$(printf '%s' "$TOP" | cksum | cut -d' ' -f1)"
 
 REPLY="$(printf '%s' "$BODY" | curl -s -m 8 -X POST "$SERVER/api/agent/hooks" \
   -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" --data-binary @- 2>/dev/null || true)"
