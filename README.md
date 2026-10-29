@@ -1,6 +1,6 @@
 # per.hr for Claude Code
 
-Logs your Claude Code sessions in [per.hr](https://per.hr): your time, agent time, compute and what shipped, matched to the client, project and Plan item. Sessions wait in per.hr's Work → To Review until you confirm them, so nothing reaches an invoice without you.
+Logs your Claude Code sessions in [per.hr](https://per.hr): your time, agent time, compute and what shipped, matched to the client, project and Plan item. Sessions wait in per.hr's Work → Review until you confirm them, so nothing reaches an invoice without you.
 
 **Beta.** The plugin works with per.hr accounts in the AI-assisted work beta.
 
@@ -22,14 +22,14 @@ Needs `bash`, `git` and `curl` (on Windows, the Git Bash that Claude Code uses).
 
 | Command | What it does |
 | --- | --- |
-| `/perhr:start PAY-214` | Work on a Plan item, or several: a range `PAY-214:216` or a list `PAY-214+PAY-220`. Switching items later sends the work so far to To Review on its own. |
+| `/perhr:start PAY-214` | Work on a Plan item, or several: a range `PAY-214:216` or a list `PAY-214+PAY-220`. Switching items later sends the work so far to Review on its own. |
 | `/perhr:status` | Your time, agent time and cost so far, and how much of the estimate is used. |
 | `/perhr:pause` | Stop recording. `/perhr:resume` starts again. |
-| `/perhr:done` | Send the session to To Review now, with a one-line summary of what shipped. |
+| `/perhr:done` | Send the session to Review now, with a one-line summary of what shipped. |
 
 A branch named with the reference (for example `feat/pay-214-reset`) attaches the session to that item on its own.
 
-With several items, your time splits by their estimates; you can change the split in To Review before confirming. The plugin's own commands aren't counted as prompts.
+With several items, your time splits by their estimates; you can change the split in Review before confirming. The plugin's own commands aren't counted as prompts.
 
 ## What's sent
 

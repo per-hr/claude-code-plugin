@@ -10,5 +10,5 @@ per.hr records this session for the person's time tracking and invoicing: their 
 - Work belongs to a **Plan item** with a reference such as `PAY-214`. A branch named with the reference (`feat/pay-214-reset`) attaches the session automatically. Otherwise run `perhr start <ref>` (or the person runs `/perhr:start <ref>`).
 - `perhr status` shows the person's time, agent time and cost so far, and how much of the item's estimate is used.
 - When the work is done, suggest `/perhr:done`. Write the summary for the client: the result in plain words, with no file names, code or internal details.
-- Never claim time or mark work billable on the person's behalf: per.hr holds every session for them to confirm in Work → To Review.
+- Never claim time or mark work billable on the person's behalf: per.hr holds every session for them to confirm in Work → Review.
 - If the session start says this repo isn't connected, tell the person once and carry on with their task.
