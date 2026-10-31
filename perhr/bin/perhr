@@ -11,6 +11,9 @@ SERVER="${SERVER:-https://per.hr}"
 KEY="$(sed -n 's/^KEY=//p' "$STATE/config")"
 TOP="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 SESSION="$(cat "$STATE/sessions/$(printf '%s' "$TOP" | cksum | cut -d' ' -f1)" 2>/dev/null)"
+# The key this repo's own events use (plugin 0.2.3 and later); else the last one seen
+REPOKEY="$(cat "$STATE/keys/$(printf '%s' "$TOP" | cksum | cut -d' ' -f1)" 2>/dev/null)"
+[ -n "$REPOKEY" ] && KEY="$REPOKEY"
 ACTION="$1"; shift || true
 case "$ACTION" in start|status|pause|resume|done) ;; *) echo "Usage: perhr start <ref> | status | pause | resume | done \"summary\""; exit 1 ;; esac
 esc() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' | awk 'BEGIN{ORS="\\n"} {print}' | sed 's/\\n$//'; }

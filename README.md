@@ -25,7 +25,7 @@ Needs `bash`, `git` and `curl` (on Windows, the Git Bash that Claude Code uses).
 | `/perhr:start PAY-214` | Work on a Plan item, or several: a range `PAY-214:216` or a list `PAY-214+PAY-220`. Switching items later sends the work so far to Review on its own. |
 | `/perhr:status` | Your time, agent time and cost so far, and how much of the estimate is used. |
 | `/perhr:pause` | Stop recording. `/perhr:resume` starts again. |
-| `/perhr:done` | Send the session to Review now, with a one-line summary of what shipped. |
+| `/perhr:done` | Send the session to Review now, with a one-line summary of what shipped. Then `/perhr:start` the next item in the same Claude Code session. |
 
 A branch named with the reference (for example `feat/pay-214-reset`) attaches the session to that item on its own.
 

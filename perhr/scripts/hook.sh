@@ -46,6 +46,12 @@ if [ "$(cat "$STATE/config" 2>/dev/null)" != "$CONF" ]; then
   printf '%s\n' "$CONF" > "$STATE/config.$$" && mv -f "$STATE/config.$$" "$STATE/config"
 fi
 [ "$EVENT" = "SessionStart" ] && printf '%s' "$SESSION" > "$STATE/sessions/$(printf '%s' "$TOP" | cksum | cut -d' ' -f1)"
+# Each repo keeps the key its own events use, so /perhr: commands there go to the same workspace
+# (one global key would follow whichever repo fired last)
+REPOKEY="$STATE/keys/$(printf '%s' "$TOP" | cksum | cut -d' ' -f1)"
+if [ -n "$KEY" ] && [ "$(cat "$REPOKEY" 2>/dev/null)" != "$KEY" ]; then
+  mkdir -p "$STATE/keys" 2>/dev/null && printf '%s' "$KEY" > "$REPOKEY.$$" && mv -f "$REPOKEY.$$" "$REPOKEY"
+fi
 
 REPLY="$(printf '%s' "$BODY" | curl -s -m 8 -X POST "$SERVER/api/agent/hooks" \
   -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" --data-binary @- 2>/dev/null || true)"
