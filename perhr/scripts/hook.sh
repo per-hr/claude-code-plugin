@@ -45,7 +45,10 @@ CONF="$(printf 'SERVER=%s\nKEY=%s\n' "$SERVER" "$KEY")"
 if [ "$(cat "$STATE/config" 2>/dev/null)" != "$CONF" ]; then
   printf '%s\n' "$CONF" > "$STATE/config.$$" && mv -f "$STATE/config.$$" "$STATE/config"
 fi
-[ "$EVENT" = "SessionStart" ] && printf '%s' "$SESSION" > "$STATE/sessions/$(printf '%s' "$TOP" | cksum | cut -d' ' -f1)"
+# This repo's current session, for the perhr command: kept on every event, so a plugin turned on
+# partway through a session works from the next message (it never saw SessionStart)
+SFILE="$STATE/sessions/$(printf '%s' "$TOP" | cksum | cut -d' ' -f1)"
+[ "$(cat "$SFILE" 2>/dev/null)" != "$SESSION" ] && printf '%s' "$SESSION" > "$SFILE.$$" && mv -f "$SFILE.$$" "$SFILE"
 # Each repo keeps the key its own events use, so /perhr: commands there go to the same workspace
 # (one global key would follow whichever repo fired last)
 REPOKEY="$STATE/keys/$(printf '%s' "$TOP" | cksum | cut -d' ' -f1)"

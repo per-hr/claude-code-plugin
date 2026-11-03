@@ -7,12 +7,12 @@ Logs your Claude Code sessions in [per.hr](https://per.hr): your time, agent tim
 ## Install
 
 1. In per.hr, open **Configure → Data → Claude Code** and choose **Create a Key**.
-2. In a terminal, from the folder of a repo you want recorded (outside a Claude session):
+2. In a terminal, outside a Claude session:
    ```
    claude plugin marketplace add per-hr/claude-code-plugin
-   claude plugin install perhr@perhr --scope project
+   claude plugin install perhr@perhr --scope user
    ```
-   Paste your key when Claude Code asks. The plugin is installed for that project only, so your other repos are never recorded.
+   Paste your key when Claude Code asks. At user scope the plugin runs in every repo with one key, and per.hr records only the repos you connect to a project. If some repos record to a different workspace (another team, or Personal), install with `--scope project` from each of those repos instead, each with that workspace's key. Use one scope per repo, never both: two copies send every event twice. `claude plugin list` shows what's installed and enabled.
 3. Start Claude Code in the repo once, then connect the repo to a project on the Claude Code card in per.hr.
 4. Optional, for cost, tokens and commits: add the settings block from the card to your user settings (`~/.claude/settings.json`, or `%USERPROFILE%\.claude\settings.json` on Windows).
 
@@ -23,7 +23,7 @@ Needs `bash`, `git` and `curl` (on Windows, the Git Bash that Claude Code uses).
 | Command | What it does |
 | --- | --- |
 | `/perhr:start PAY-214` | Work on a Plan item, or several: a range `PAY-214:216` or a list `PAY-214+PAY-220`. Switching items later sends the work so far to Review on its own. |
-| `/perhr:status` | Your time, agent time and cost so far, and how much of the estimate is used. |
+| `/perhr:status` | Which Plan items this session is recording to (or that it's paused), your time, agent time and cost so far, and how much of the estimate is used. |
 | `/perhr:pause` | Stop recording. `/perhr:resume` starts again. |
 | `/perhr:done` | Send the session to Review now, with a one-line summary of what shipped. Then `/perhr:start` the next item in the same Claude Code session. |
 

@@ -1,5 +1,5 @@
 ---
-description: Show this session's time and cost in per.hr
+description: Show which Plan items this session is recording to, and its time and cost in per.hr
 allowed-tools: Bash(perhr:*)
 ---
 

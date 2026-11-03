@@ -20,5 +20,8 @@ esc() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' | awk 'BEGIN{ORS=
 EXTRA=""
 [ "$ACTION" = "start" ] && EXTRA=",\"ref\":\"$(esc "$*")\""
 [ "$ACTION" = "done" ] && EXTRA=",\"summary\":\"$(esc "$*")\""
-BODY="{\"action\":\"$ACTION\",\"sessionId\":\"$(esc "$SESSION")\"$EXTRA}"
+# The repo it ran in, so per.hr can say when it isn't connected (never its files or contents)
+REMOTE="$(git -C "$TOP" remote get-url origin 2>/dev/null || true)"
+FOLDER="$(basename "$TOP")"
+BODY="{\"action\":\"$ACTION\",\"sessionId\":\"$(esc "$SESSION")\",\"remote\":\"$(esc "$REMOTE")\",\"folder\":\"$(esc "$FOLDER")\"$EXTRA}"
 printf '%s' "$BODY" | curl -s -m 15 -X POST "$SERVER/api/agent/cli" -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" --data-binary @- -w '\n'
