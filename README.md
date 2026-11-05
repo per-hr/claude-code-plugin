@@ -1,3 +1,5 @@
+<a href="https://per.hr/features/ai-assisted-development"><img src="assets/banner.jpg" alt="per.hr AI-assisted development (beta): bill for work you ship with Claude Code. per.hr records your Claude Code sessions: your time, agent time, compute and what shipped." width="100%"></a>
+
 # per.hr for Claude Code
 
 Logs your Claude Code sessions in [per.hr](https://per.hr): your time, agent time, compute and what shipped, matched to the client, project and Plan item. Sessions wait in per.hr's Work → Review until you confirm them, so nothing reaches an invoice without you.
