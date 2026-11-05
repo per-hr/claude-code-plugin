@@ -34,7 +34,7 @@ COMMAND=false
 [ "$EVENT" = "UserPromptSubmit" ] && printf '%s' "$INPUT" | grep -q '"prompt"[[:space:]]*:[[:space:]]*"[[:space:]]*/perhr:' && COMMAND=true
 
 esc() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' | tr -d '\n\r'; }
-BODY="{\"tool\":\"claude-code\",\"command\":$COMMAND,\"remote\":\"$(esc "$REMOTE")\",\"folder\":\"$(esc "$FOLDER")\",\"branch\":\"$(esc "$BRANCH")\",\"event\":{\"session_id\":\"$(esc "$SESSION")\",\"hook_event_name\":\"$(esc "$EVENT")\",\"agent_id\":\"$(esc "$AGENT")\"}}"
+BODY="{\"tool\":\"claude-code\",\"plugin\":\"0.2.6\",\"command\":$COMMAND,\"remote\":\"$(esc "$REMOTE")\",\"folder\":\"$(esc "$FOLDER")\",\"branch\":\"$(esc "$BRANCH")\",\"event\":{\"session_id\":\"$(esc "$SESSION")\",\"hook_event_name\":\"$(esc "$EVENT")\",\"agent_id\":\"$(esc "$AGENT")\"}}"
 
 # For the perhr command (/perhr:start, status, pause, resume, done): the key, and this repo's session
 STATE="$HOME/.perhr"
@@ -58,5 +58,19 @@ fi
 
 REPLY="$(printf '%s' "$BODY" | curl -s -m 8 -X POST "$SERVER/api/agent/hooks" \
   -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" --data-binary @- 2>/dev/null || true)"
-[ "$EVENT" = "SessionStart" ] && [ -n "$REPLY" ] && printf '%s\n' "$REPLY"
+if [ "$EVENT" = "SessionStart" ] && [ -n "$REPLY" ]; then
+  # per.hr asks for notes with {{PERHR}}: the perhr command's full path and this repo, so Claude can
+  # run it from any folder (bin isn't always on the Bash tool's PATH). Paths as bash reads them.
+  case "$REPLY" in
+    *"{{PERHR}}"*)
+      ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
+      RTOP="$TOP"
+      if command -v cygpath >/dev/null 2>&1; then ROOT="$(cygpath -u "$ROOT")"; RTOP="$(cygpath -u "$RTOP")"; fi
+      CMD="\"$ROOT/bin/perhr\" --repo \"$RTOP\""
+      shopt -u patsub_replacement 2>/dev/null
+      REPLY="${REPLY//\{\{PERHR\}\}/$CMD}"
+      ;;
+  esac
+  printf '%s\n' "$REPLY"
+fi
 exit 0
