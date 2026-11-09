@@ -28,15 +28,15 @@ BRANCH="$(git -C "$DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
 [ "$BRANCH" = "HEAD" ] && BRANCH=""
 FOLDER="$(basename "$TOP")"
 
-# Whether the prompt is one of this plugin's commands (/perhr:start, /perhr:done, ...): checked here,
+# Whether the prompt is one of this plugin's commands (/perhr:start, /perhr:end, ...): checked here,
 # so per.hr learns only yes or no, never the prompt
 COMMAND=false
 [ "$EVENT" = "UserPromptSubmit" ] && printf '%s' "$INPUT" | grep -q '"prompt"[[:space:]]*:[[:space:]]*"[[:space:]]*/perhr:' && COMMAND=true
 
 esc() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' | tr -d '\n\r'; }
-BODY="{\"tool\":\"claude-code\",\"plugin\":\"0.2.6\",\"command\":$COMMAND,\"remote\":\"$(esc "$REMOTE")\",\"folder\":\"$(esc "$FOLDER")\",\"branch\":\"$(esc "$BRANCH")\",\"event\":{\"session_id\":\"$(esc "$SESSION")\",\"hook_event_name\":\"$(esc "$EVENT")\",\"agent_id\":\"$(esc "$AGENT")\"}}"
+BODY="{\"tool\":\"claude-code\",\"plugin\":\"0.3.0\",\"command\":$COMMAND,\"remote\":\"$(esc "$REMOTE")\",\"folder\":\"$(esc "$FOLDER")\",\"branch\":\"$(esc "$BRANCH")\",\"event\":{\"session_id\":\"$(esc "$SESSION")\",\"hook_event_name\":\"$(esc "$EVENT")\",\"agent_id\":\"$(esc "$AGENT")\"}}"
 
-# For the perhr command (/perhr:start, status, pause, resume, done): the key, and this repo's session
+# For the perhr command (/perhr:start, status, end): the key, and this repo's session
 STATE="$HOME/.perhr"
 mkdir -p "$STATE/sessions" 2>/dev/null && chmod 700 "$STATE" 2>/dev/null
 umask 077
