@@ -8,6 +8,8 @@ Logs your Claude Code sessions in [per.hr](https://per.hr): your time, agent tim
 
 ## Install
 
+On a team, your owner or admin can send you a setup link from per.hr instead: open it, choose **Make My Key**, and run the one command it shows. It saves your key and installs the plugin, and the team's repos are already connected. Then skip to step 4.
+
 1. In per.hr, open **Configure → Data → Claude Code** and choose **Create a Key**.
 2. In a terminal, outside a Claude session:
    ```
