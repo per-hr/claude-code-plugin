@@ -14,7 +14,11 @@ Logs your Claude Code sessions in [per.hr](https://per.hr): your time, agent tim
    claude plugin marketplace add per-hr/claude-code-plugin
    claude plugin install perhr@perhr --scope user
    ```
-   Paste your key when Claude Code asks. At user scope the plugin runs in every repo with one key, and per.hr records only the repos you connect to a project. If some repos record to a different workspace (another team, or Personal), install with `--scope project` from each of those repos instead, each with that workspace's key. Use one scope per repo, never both: two copies send every event twice. `claude plugin list` shows what's installed and enabled.
+   Paste your key when Claude Code asks, or later in `/plugin` → Installed → perhr → Configure (at the computer: `/plugin` isn't available over Remote Control). Or save it in a file only you can read, from any terminal:
+   ```
+   mkdir -p ~/.perhr && printf '%s' 'perhr_sk_YOUR_KEY' > ~/.perhr/key && chmod 600 ~/.perhr/key
+   ```
+   A key set in `/plugin` takes priority over the file. At user scope the plugin runs in every repo with one key, and per.hr records only the repos you connect to a project. If some repos record to a different workspace (another team, or Personal), install with `--scope project` from each of those repos instead, each with that workspace's key. Use one scope per repo, never both: two copies send every event twice. `claude plugin list` shows what's installed and enabled.
 3. Start Claude Code in the repo once, then connect the repo to a project on the Claude Code card in per.hr.
 4. Optional, for cost, tokens and commits: add the settings block from the card to your user settings (`~/.claude/settings.json`, or `%USERPROFILE%\.claude\settings.json` on Windows).
 

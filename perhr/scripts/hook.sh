@@ -5,6 +5,9 @@
 # The reply is printed only for SessionStart, where Claude Code shows it to Claude as context.
 
 KEY="${CLAUDE_PLUGIN_OPTION_API_KEY:-${CLAUDE_PLUGIN_OPTION_api_key:-}}"
+# Without a key in /plugin, a key saved in ~/.perhr/key (for setting it where /plugin isn't
+# available, like Remote Control)
+if [ -z "$KEY" ] && [ -f "$HOME/.perhr/key" ]; then KEY="$(tr -d ' \r\n' < "$HOME/.perhr/key" 2>/dev/null)"; fi
 # per.hr's address: always https://per.hr, except PERHR_SERVER for per.hr's own development (and an
 # address saved by plugin versions before 0.2.1, which asked for one)
 SERVER="${PERHR_SERVER:-${CLAUDE_PLUGIN_OPTION_SERVER:-${CLAUDE_PLUGIN_OPTION_server:-}}}"
@@ -34,7 +37,7 @@ COMMAND=false
 [ "$EVENT" = "UserPromptSubmit" ] && printf '%s' "$INPUT" | grep -q '"prompt"[[:space:]]*:[[:space:]]*"[[:space:]]*/perhr:' && COMMAND=true
 
 esc() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' | tr -d '\n\r'; }
-BODY="{\"tool\":\"claude-code\",\"plugin\":\"0.3.0\",\"command\":$COMMAND,\"remote\":\"$(esc "$REMOTE")\",\"folder\":\"$(esc "$FOLDER")\",\"branch\":\"$(esc "$BRANCH")\",\"event\":{\"session_id\":\"$(esc "$SESSION")\",\"hook_event_name\":\"$(esc "$EVENT")\",\"agent_id\":\"$(esc "$AGENT")\"}}"
+BODY="{\"tool\":\"claude-code\",\"plugin\":\"0.3.1\",\"command\":$COMMAND,\"remote\":\"$(esc "$REMOTE")\",\"folder\":\"$(esc "$FOLDER")\",\"branch\":\"$(esc "$BRANCH")\",\"event\":{\"session_id\":\"$(esc "$SESSION")\",\"hook_event_name\":\"$(esc "$EVENT")\",\"agent_id\":\"$(esc "$AGENT")\"}}"
 
 # For the perhr command (/perhr:start, status, end): the key, and this repo's session
 STATE="$HOME/.perhr"
