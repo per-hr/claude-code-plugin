@@ -27,6 +27,8 @@ EXTRA=""
 { [ "$ACTION" = "end" ] || [ "$ACTION" = "done" ] || [ "$ACTION" = "note" ]; } && EXTRA=",\"summary\":\"$(esc "$*")\""
 # The repo it ran in, so per.hr can say when it isn't connected (never its files or contents)
 REMOTE="$(git -C "$TOP" remote get-url origin 2>/dev/null || true)"
+# Record by folder name only: the same choice the hook made
+{ [ "$(sed -n 's/^FOLDER_ONLY=//p' "$STATE/config")" = "true" ] || [ -f "$HOME/.perhr/folder-only" ]; } && REMOTE=""
 FOLDER="$(basename "$TOP")"
 BODY="{\"action\":\"$ACTION\",\"sessionId\":\"$(esc "$SESSION")\",\"remote\":\"$(esc "$REMOTE")\",\"folder\":\"$(esc "$FOLDER")\"$EXTRA}"
 printf '%s' "$BODY" | curl -s -m 15 -X POST "$SERVER/api/agent/cli" -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" --data-binary @- -w '\n'

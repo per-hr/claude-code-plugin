@@ -1,7 +1,7 @@
 {
   "name": "perhr",
   "displayName": "per.hr",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Log your Claude Code sessions in per.hr: your time, agent time, compute and what shipped, matched to the client, project and Plan item. Only repos you connect in per.hr are recorded; prompts and code are never sent.",
   "author": { "name": "per.hr", "url": "https://per.hr" },
   "homepage": "https://per.hr",
@@ -13,6 +13,13 @@
       "title": "per.hr key",
       "description": "From per.hr: Configure → Data → Claude Code → Create a Key. Or leave this empty and save the key in ~/.perhr/key.",
       "sensitive": true,
+      "required": false
+    },
+    "folder_only": {
+      "type": "boolean",
+      "title": "Record by folder name only",
+      "description": "Send only each repo's folder name to per.hr, never its remote address (host, owner and repo name). Repos then appear in per.hr by folder name; match them to projects again after turning this on. Or create the file ~/.perhr/folder-only.",
+      "default": false,
       "required": false
     }
   }

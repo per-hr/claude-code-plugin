@@ -42,7 +42,11 @@ With several items, your time splits by their estimates; you can change the spli
 
 ## What's sent
 
-Hook events (session start and end, prompt submitted, turn finished, subagent started and stopped) with the session id, the repo's remote, folder name and branch, the plugin's version, and whether a prompt was one of the plugin's commands (checked on your computer). Notes and `/perhr:end` summaries are sent as Claude wrote them. Prompts, code and file contents stay on your computer. per.hr discards events from repos you haven't connected.
+Hook events (session start and end, prompt submitted, turn finished, subagent started and stopped) with the session id, the repo's remote, folder name and branch, the plugin's version, and whether a prompt was one of the plugin's commands (checked on your computer). Notes and `/perhr:end` summaries are sent as Claude wrote them; Claude writes them about the work itself, never mentioning Claude, AI or the tools used, since clients see them on invoices. Prompts, code and file contents stay on your computer. per.hr discards events from repos you haven't connected, and never connects to your repos on GitHub, Bitbucket or anywhere else.
+
+**Record by folder name only** (0.3.2 and later): turn on `folder_only` in `/plugin` → Installed → perhr → Configure, or create the file `~/.perhr/folder-only`. The plugin then sends each repo's folder name in place of its remote address, so per.hr never sees the host, owner or repo name. Connect the repos to projects again after turning it on.
+
+**Commits and pull requests:** Claude Code adds a "Co-Authored-By: Claude" line to commits and a "Generated with Claude Code" line to pull requests unless you turn them off. To keep them out, add `"attribution": { "commit": "", "pr": "" }` to your user settings (`~/.claude/settings.json`). per.hr itself never writes to commits, pull requests, issues or tickets.
 
 ## Guide
 
