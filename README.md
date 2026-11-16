@@ -32,7 +32,7 @@ Needs `bash`, `git` and `curl` (on Windows, the Git Bash that Claude Code uses).
 | --- | --- |
 | `/perhr:start PAY-214` | Work on a Plan item, or several: a range `PAY-214:216` or a list `PAY-214+PAY-220`. Switching items later sends the work so far to To Review on its own. Starting an item that's Done reopens it. |
 | `/perhr:status` | Which Plan items this session is recording to, your time, agent time and cost so far, and how much of the estimate is used. |
-| `/perhr:end` | The work is finished: send the session to To Review now, with a one-line summary of what shipped. Adding it to To Invoice there closes the Plan item. Then `/perhr:start` the next item in the same Claude Code session. (`/perhr:done` is its older name.) |
+| `/perhr:end` | The work is finished: send the session to To Review now, with a one-line summary of what shipped. Adding it to To Invoice there closes the Plan item. Then `/perhr:start` the next item in the same Claude Code session. |
 
 A branch named with the reference (for example `feat/pay-214-reset`) attaches the session to that item on its own.
 

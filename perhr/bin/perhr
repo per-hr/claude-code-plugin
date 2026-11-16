@@ -3,7 +3,7 @@
 #   perhr start PAY-214      work on this Plan item (or several: PAY-214:216, PAY-214+PAY-220)
 #   perhr status             your time, agent time and cost so far
 #   perhr end "summary"      the work is finished: send the session to per.hr for review, with a client-ready summary
-#                            (done is its older name; pause and resume still work)
+#                            (pause and resume still work)
 #   perhr note "what changed" save a short note of the work so far (titles a session with no Plan item)
 #   --repo <folder> first: the session's repo, when the command runs from another folder
 STATE="$HOME/.perhr"
