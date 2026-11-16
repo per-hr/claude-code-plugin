@@ -41,7 +41,7 @@ COMMAND=false
 [ "$EVENT" = "UserPromptSubmit" ] && printf '%s' "$INPUT" | grep -q '"prompt"[[:space:]]*:[[:space:]]*"[[:space:]]*/perhr:' && COMMAND=true
 
 esc() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' | tr -d '\n\r'; }
-BODY="{\"tool\":\"claude-code\",\"plugin\":\"0.3.2\",\"command\":$COMMAND,\"remote\":\"$(esc "$REMOTE")\",\"folder\":\"$(esc "$FOLDER")\",\"branch\":\"$(esc "$BRANCH")\",\"event\":{\"session_id\":\"$(esc "$SESSION")\",\"hook_event_name\":\"$(esc "$EVENT")\",\"agent_id\":\"$(esc "$AGENT")\"}}"
+BODY="{\"tool\":\"claude-code\",\"plugin\":\"0.3.3\",\"command\":$COMMAND,\"remote\":\"$(esc "$REMOTE")\",\"folder\":\"$(esc "$FOLDER")\",\"branch\":\"$(esc "$BRANCH")\",\"event\":{\"session_id\":\"$(esc "$SESSION")\",\"hook_event_name\":\"$(esc "$EVENT")\",\"agent_id\":\"$(esc "$AGENT")\"}}"
 
 # For the perhr command (/perhr:start, status, end): the key, and this repo's session
 STATE="$HOME/.perhr"
