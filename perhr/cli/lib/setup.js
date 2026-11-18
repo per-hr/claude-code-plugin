@@ -1,7 +1,9 @@
 import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { call, currentTop, VERSION } from "./api.js";
 import { apply, plan, SETTINGS, SNIPPET } from "./claude-settings.js";
-import { loadKey } from "./config.js";
+import { DIR, loadKey } from "./config.js";
 import { login } from "./login.js";
 import { bold, choose, confirm, cyan, dim, green, money, openBrowser, out, tty, value, yellow } from "./ui.js";
 import { gitRemote } from "./git.js";
@@ -17,18 +19,41 @@ export const STEPS =["work", "account", "business", "paid", "clients", "claude",
 const email = (v) => (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? null : "Enter an email address.");
 const rate = (v) => (Number(v) > 0 && Number(v) <= 100000 ? null : "Enter an hourly rate, like 125.");
 
-function line(s) {
-  const mark = !s.applies ? dim("-") : s.done ? green("✓") : yellow("○");
-  return `  ${mark} ${s.applies ? s.title : dim(`${s.title} (the team's owner does this)`)}`;
+/**
+ * What this computer has, whatever the account's steps say: the plugin installed in Claude Code, and
+ * per.hr's rules in its settings. per.hr marks the Claude Code step done once the account has a key,
+ * and signing in makes one, so setup looks here before skipping that step.
+ */
+function claudeHere() {
+  let plugin = false;
+  try {
+    plugin = /\bperhr@perhr\b/.test(execFileSync("claude", ["plugin", "list"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], shell: process.platform === "win32" }));
+  } catch {}
+  let rules = false;
+  try {
+    const p = plan();
+    rules = !p.allow.length && !p.ask.length;
+  } catch {}
+  return { plugin, rules };
+}
+
+function line(s, here) {
+  // Done on the account, but this computer doesn't have the plugin yet
+  const missing = s.id === "claude" && s.done && here && !here.plugin;
+  const mark = !s.applies ? dim("-") : s.done && !missing ? green("✓") : yellow("○");
+  return `  ${mark} ${s.applies ? s.title : dim(`${s.title} (the team's owner does this)`)}${missing ? dim("  (not on this computer yet)") : ""}`;
 }
 
 export async function setupStatus({ json }) {
   const s = await call("GET", "setup");
-  if (json) return s;
+  const here = claudeHere();
+  if (json) return { ...s, thisComputer: here };
   out(bold("per.hr setup"));
-  for (const st of s.steps) out(line(st));
+  for (const st of s.steps) out(line(st, here));
   if (s.beta) out(dim(`\nper.hr for AI: ${s.beta.approval}${s.beta.trialEndsAt ? `, trial until ${String(s.beta.trialEndsAt).slice(0, 10)}` : ""}`));
-  out(s.next ? `\nNext: ${cyan(`perhr setup --step ${s.next}`)}` : `\n${green("Setup is done.")}`);
+  const next = s.next ?? (here.plugin ? null : "claude");
+  out(next ? `\nNext: ${cyan(`perhr setup --step ${next}`)}` : `\n${green("Setup is done.")}`);
+  if (!next && !here.rules) out(dim(`per.hr's rules aren't in your Claude Code settings on this computer, so Claude Code asks before every perhr command. Add them: ${cyan("perhr setup --step claude")}`));
   return s;
 }
 
@@ -219,6 +244,11 @@ const STEP = {
   async check() {
     const d = await call("GET", "doctor");
     for (const c of d.checks) out(`  ${c.ok ? green("✓") : yellow("○")} ${c.message}${c.ok || !c.fix ? "" : dim(`  → ${c.fix}`)}`);
+    // On this computer: the plugin writes ~/.perhr/plugin.json when it starts its first Claude Code session
+    const here = claudeHere();
+    if (!here.plugin) out(`  ${yellow("○")} The Claude Code plugin isn't installed on this computer.${dim("  → perhr setup --step claude")}`);
+    else if (!existsSync(join(DIR, "plugin.json"))) out(`  ${yellow("○")} The plugin is installed and hasn't started a session yet. Start Claude Code in a linked folder and send a message.`);
+    else out(`  ${green("✓")} The Claude Code plugin has started a session on this computer.`);
   },
 
   async try() {
@@ -250,7 +280,10 @@ export async function setup(f) {
   for (const step of STEPS) {
     const s = await call("GET", "setup");
     const st = s.steps.find((x) => x.id === step);
-    if (!st?.applies || (st.done && step !== "check")) continue;
+    // The Claude Code step also runs when this computer is missing the plugin or the rules
+    const here = step === "claude" ? claudeHere() : null;
+    const needed = !!here && (!here.plugin || !here.rules);
+    if (!st?.applies || (st.done && step !== "check" && !needed)) continue;
     out(`\n${bold(st.title)}`);
     await STEP[step](f, s);
   }
