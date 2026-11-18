@@ -11,6 +11,7 @@ Get started
   perhr login | logout       Sign this computer in or out (approve at per.hr/device)
   perhr whoami | status      Who you are, and what's waiting
   perhr doctor               Check the connection
+  perhr uninstall            Take per.hr off this computer (your account and data stay)
   perhr keys                 Computers and keys; perhr keys disconnect <id>
   perhr workspace [use <name>]
 

@@ -53,6 +53,10 @@ When per.hr can't be reached, events wait on your computer (`~/.perhr/queue.json
 
 **Commits and pull requests:** Claude Code adds a "Co-Authored-By: Claude" line to commits and a "Generated with Claude Code" line to pull requests unless you turn them off. To keep them out, add `"attribution": { "commit": "", "pr": "" }` to your user settings (`~/.claude/settings.json`). per.hr itself never writes to commits, pull requests, issues or tickets.
 
+## Turning it off
+
+`perhr logout` disconnects this computer and keeps everything else. `perhr uninstall` takes per.hr off the computer: it disconnects the key, uninstalls this plugin, removes per.hr's rules, status line and compute from your Claude Code settings (the previous file is saved beside it), and deletes `~/.perhr`. Your per.hr account and everything recorded stay as they are.
+
 ## Guide
 
 The full guide, including how your time is counted and how clients are billed: [per.hr/docs/claude-code](https://per.hr/docs/claude-code).

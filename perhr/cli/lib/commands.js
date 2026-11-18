@@ -1,7 +1,9 @@
 import { call, currentTop, sessionCall, VERSION } from "./api.js";
-import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { DIR, forgetKey, loadConfig, loadKey, repoState, saveConfig } from "./config.js";
+import { apiBase, DIR, forgetKey, loadConfig, loadKey, repoState, saveConfig } from "./config.js";
+import { removeOurs, SETTINGS } from "./claude-settings.js";
 import { login } from "./login.js";
 import { setup, setupStatus } from "./setup.js";
 import { gitRemote } from "./git.js";
@@ -61,6 +63,48 @@ export const COMMANDS = {
     forgetKey();
     if (!f.json) out("Signed out. This computer is disconnected from per.hr.");
     return { signedOut: true };
+  },
+
+  // Take per.hr off this computer: its key, the plugin, the rules and compute in Claude Code's
+  // settings, and ~/.perhr. The account and everything recorded stay on per.hr.
+  async uninstall(_p, f) {
+    if (!f.json) {
+      out(bold("Remove per.hr from this computer"));
+      out(`  Disconnects this computer's key on per.hr\n  Uninstalls the per.hr plugin from Claude Code\n  Removes per.hr's rules, status line and compute from ${SETTINGS}\n  Deletes ${DIR} (the key, settings, and any events still waiting to send)`);
+      out(dim("Your per.hr account, clients, time and invoices stay as they are."));
+    }
+    if (!f.yes && !tty()) throw new UsageError("Run perhr uninstall in a terminal, or add --yes.");
+    if (!(await confirm(f, "Remove it?", false))) {
+      if (!f.json) out("Nothing was changed.");
+      return { removed: false };
+    }
+    const api = apiBase();
+    await COMMANDS.logout([], { json: true }).catch(() => null);
+    let settings = { rules: 0, statusLine: false, compute: false };
+    let settingsError = null;
+    try {
+      settings = removeOurs(api);
+    } catch (e) {
+      settingsError = e instanceof Error ? e.message : String(e);
+    }
+    let plugin = false;
+    try {
+      execFileSync("claude", ["plugin", "uninstall", "perhr@perhr", "--scope", "user"], { stdio: "ignore", shell: process.platform === "win32" });
+      plugin = true;
+    } catch {}
+    const hadDir = existsSync(DIR);
+    if (hadDir) rmSync(DIR, { recursive: true, force: true });
+    if (!f.json) {
+      out(green("\nRemoved from this computer."));
+      out(`  ${plugin ? green("✓") : yellow("○")} ${plugin ? "The plugin is uninstalled." : "Claude Code didn't uninstall the plugin (it may not be installed). To check: claude plugin list"}`);
+      if (settingsError) out(`  ${yellow("○")} ${settingsError}`);
+      else out(`  ${green("✓")} Claude Code settings: ${settings.rules} rules${settings.statusLine ? ", the status line" : ""}${settings.compute ? ", compute" : ""} removed${settings.rules || settings.statusLine || settings.compute ? dim(` (the previous file is ${SETTINGS}.perhr-backup)`) : ""}.`);
+      out(dim("\nStill yours to do, if they apply:"));
+      out(dim("  A key made in per.hr (Configure → Data → Claude Code) isn't tied to this computer: revoke it there."));
+      out(dim("  The perhr command, if you installed it for every terminal: npm uninstall -g perhr"));
+      out(dim("  Closing your per.hr account is separate, in Settings on per.hr."));
+    }
+    return { removed: true, plugin, settings, settingsError, deleted: hadDir ? DIR : null };
   },
 
   async whoami(_p, f) {

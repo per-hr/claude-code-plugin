@@ -75,6 +75,8 @@ export const ASK = [
   "Bash(perhr keys disconnect *)",
   "Bash(perhr workspace use *)",
   "Bash(perhr logout)",
+  "Bash(perhr uninstall)",
+  "Bash(perhr uninstall *)",
   "Bash(perhr team invite *)",
   "Bash(perhr team cancel *)",
   "Bash(perhr team role *)",
@@ -121,6 +123,72 @@ export function apply(p, { statusLine = true } = {}) {
   if (existsSync(SETTINGS)) copyFileSync(SETTINGS, `${SETTINGS}.perhr-backup`);
   writeFileSync(SETTINGS, JSON.stringify(next, null, 2) + "\n");
   return { backup: existsSync(`${SETTINGS}.perhr-backup`) ? `${SETTINGS}.perhr-backup` : null };
+}
+
+// Compute: Claude Code's own telemetry (cost, tokens, models, commits, pull requests), sent to per.hr
+// with this computer's key. per.hr keeps it only for sessions the plugin started.
+const computeEnv = (api, key) => ({
+  CLAUDE_CODE_ENABLE_TELEMETRY: "1",
+  OTEL_METRICS_EXPORTER: "otlp",
+  OTEL_LOGS_EXPORTER: "otlp",
+  OTEL_EXPORTER_OTLP_PROTOCOL: "http/json",
+  OTEL_EXPORTER_OTLP_ENDPOINT: `${api}/api/agent/otel`,
+  OTEL_EXPORTER_OTLP_HEADERS: `Authorization=Bearer ${key}`,
+  OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE: "delta",
+});
+
+/**
+ * Where compute stands in the settings file: "current" (per.hr, with this key), "older" (per.hr, with
+ * another key, such as one made in Configure → Data), "elsewhere" (telemetry already goes to another
+ * service, so setup leaves it alone) or "none"
+ */
+export function computeState(api, key, settings = readSettings()) {
+  const env = settings.env ?? {};
+  const endpoint = String(env.OTEL_EXPORTER_OTLP_ENDPOINT ?? "");
+  if (!endpoint) return "none";
+  if (!endpoint.startsWith(api)) return "elsewhere";
+  return String(env.OTEL_EXPORTER_OTLP_HEADERS ?? "").includes(key) ? "current" : "older";
+}
+
+/** Add or move compute to this computer's key, keeping everything else in the file */
+export function applyCompute(api, key) {
+  const settings = readSettings();
+  const next = { ...settings, env: { ...(settings.env ?? {}), ...computeEnv(api, key) } };
+  mkdirSync(join(SETTINGS, ".."), { recursive: true });
+  if (existsSync(SETTINGS)) copyFileSync(SETTINGS, `${SETTINGS}.perhr-backup`);
+  writeFileSync(SETTINGS, JSON.stringify(next, null, 2) + "\n", { mode: 0o600 });
+}
+
+/**
+ * Take per.hr back out of the settings file (perhr uninstall): its rules, its status line, and compute
+ * when it goes to per.hr. Everything else stays, and the previous file is saved beside it.
+ */
+export function removeOurs(api) {
+  if (!existsSync(SETTINGS)) return { rules: 0, statusLine: false, compute: false };
+  const settings = readSettings();
+  const next = { ...settings };
+  let rules = 0;
+  if (settings.permissions) {
+    next.permissions = { ...settings.permissions };
+    for (const [list, ours] of [["allow", ALLOW], ["ask", ASK]]) {
+      const had = settings.permissions[list];
+      if (!Array.isArray(had)) continue;
+      next.permissions[list] = had.filter((r) => !ours.includes(r));
+      rules += had.length - next.permissions[list].length;
+    }
+  }
+  const statusLine = String(settings.statusLine?.command ?? "").includes("perhr statusline");
+  if (statusLine) delete next.statusLine;
+  const compute = String(settings.env?.OTEL_EXPORTER_OTLP_ENDPOINT ?? "").startsWith(api);
+  if (compute) {
+    next.env = { ...settings.env };
+    for (const k of Object.keys(computeEnv(api, ""))) delete next.env[k];
+  }
+  if (rules || statusLine || compute) {
+    copyFileSync(SETTINGS, `${SETTINGS}.perhr-backup`);
+    writeFileSync(SETTINGS, JSON.stringify(next, null, 2) + "\n", { mode: 0o600 });
+  }
+  return { rules, statusLine, compute };
 }
 
 /** For a status line that's already taken: what to add to the script that's there */

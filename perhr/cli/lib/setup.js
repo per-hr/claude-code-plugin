@@ -2,8 +2,8 @@ import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { call, currentTop, VERSION } from "./api.js";
-import { apply, plan, SETTINGS, SNIPPET } from "./claude-settings.js";
-import { DIR, loadKey } from "./config.js";
+import { apply, applyCompute, computeState, plan, SETTINGS, SNIPPET } from "./claude-settings.js";
+import { apiBase, DIR, loadKey } from "./config.js";
 import { login } from "./login.js";
 import { bold, choose, confirm, cyan, dim, green, money, openBrowser, out, tty, value, yellow } from "./ui.js";
 import { gitRemote } from "./git.js";
@@ -218,6 +218,25 @@ const STEP = {
         out(green("Added.") + (r.backup ? dim(` The previous file is saved as ${r.backup}.`) : ""));
       } else out(dim("Skipped. Without the rules, Claude Code asks before every perhr command."));
     } else out(green("The per.hr rules are already in your Claude Code settings."));
+    // 4. Compute, with this computer's own key (a key made in per.hr keeps working until it's revoked)
+    const k = loadKey(currentTop());
+    if (k?.from === "login" && !f["no-compute"]) {
+      const state = computeState(apiBase(), k.key);
+      if (state === "current") out(green("\nCompute is already recording with this computer's key."));
+      else if (state === "elsewhere") out(dim("\nClaude Code's telemetry already goes to another service, so setup left compute alone. per.hr still records your time and agent time."));
+      else {
+        out(
+          state === "older"
+            ? "\nCompute (cost, tokens, models, commits) is set up with an older per.hr key. Moving it to this computer's key keeps it recording if that key is ever revoked."
+            : "\nRecord compute? Claude Code sends per.hr the cost, tokens, models, commits and pull requests for sessions the plugin records; nothing from other folders is kept.",
+        );
+        out(dim(`  It adds seven entries under "env" in ${SETTINGS}, including this computer's key. The file is readable only by you.`));
+        if (await confirm(f, state === "older" ? "Move it?" : "Record compute?", !!f.compute || !!f.yes)) {
+          applyCompute(apiBase(), k.key);
+          out(green("Added.") + dim(" New Claude Code sessions pick it up."));
+        } else out(dim("Skipped. Add it later with perhr setup --step claude."));
+      }
+    }
     if (p.statusLine === "taken") out(`\nYou already have a status line. To show per.hr in it too, add this to its script:\n${dim(SNIPPET)}`);
     out(dim("\nWhat Claude sees: when Claude runs a perhr command, its output enters the conversation. Rates you type in setup never pass through Claude. Typing perhr yourself keeps the output out of it."));
   },
