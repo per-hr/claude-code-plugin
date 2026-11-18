@@ -24,7 +24,7 @@ claude plugin install perhr@perhr --scope user
 perhr login
 ```
 
-At user scope the plugin runs in every repo, and per.hr records only the repos you link to a project. Each repo records to the workspace (Personal or a team) where it's linked. A key made in per.hr before the CLI (Configure → Data → Claude Code, or a team's setup link) still works, in `/plugin` → Installed → perhr → Configure or in `~/.perhr/key`; this computer's own key from `perhr login` takes its place.
+At user scope the plugin runs in every repo, and per.hr records only the repos you link to a project. Each repo records to the workspace (Personal or a team) where it's linked. A key made in per.hr before the CLI (Configure → per.hr for AI, or a team's setup link) still works, in `/plugin` → Installed → perhr → Configure or in `~/.perhr/key`; this computer's own key from `perhr login` takes its place.
 
 Needs Node 18.17 or later and `git`.
 

@@ -139,7 +139,7 @@ const computeEnv = (api, key) => ({
 
 /**
  * Where compute stands in the settings file: "current" (per.hr, with this key), "older" (per.hr, with
- * another key, such as one made in Configure → Data), "elsewhere" (telemetry already goes to another
+ * another key, such as one made in Configure → per.hr for AI), "elsewhere" (telemetry already goes to another
  * service, so setup leaves it alone) or "none"
  */
 export function computeState(api, key, settings = readSettings()) {

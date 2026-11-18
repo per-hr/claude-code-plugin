@@ -100,7 +100,7 @@ export const COMMANDS = {
       if (settingsError) out(`  ${yellow("○")} ${settingsError}`);
       else out(`  ${green("✓")} Claude Code settings: ${settings.rules} rules${settings.statusLine ? ", the status line" : ""}${settings.compute ? ", compute" : ""} removed${settings.rules || settings.statusLine || settings.compute ? dim(` (the previous file is ${SETTINGS}.perhr-backup)`) : ""}.`);
       out(dim("\nStill yours to do, if they apply:"));
-      out(dim("  A key made in per.hr (Configure → Data → Claude Code) isn't tied to this computer: revoke it there."));
+      out(dim("  A key made in per.hr (Configure → per.hr for AI) isn't tied to this computer: revoke it there."));
       out(dim("  The perhr command, if you installed it for every terminal: npm uninstall -g perhr"));
       out(dim("  Closing your per.hr account is separate, in Settings on per.hr."));
     }

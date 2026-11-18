@@ -3,7 +3,8 @@
 // file contents. per.hr records nothing for repos you haven't linked there. When per.hr can't be
 // reached, events wait in ~/.perhr/queue.jsonl (never with a key) and go out, in order, with the next
 // one that gets through, sent with the key this computer has then.
-// The reply is printed only for SessionStart, where Claude Code shows it to Claude as context.
+// The reply is printed for SessionStart, and for a prompt when per.hr sends a reminder; Claude Code
+// shows it to Claude as context.
 import { closeSync, existsSync, openSync, readFileSync, rmSync, statSync, writeFileSync, appendFileSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
@@ -11,7 +12,7 @@ import { fileURLToPath } from "node:url";
 import { gitRemote } from "../cli/lib/git.js";
 import { repoState, stateFile, writeJsonAtomic } from "../cli/lib/config.js";
 
-const VERSION = "0.5.3";
+const VERSION = "0.5.4";
 const HOME = process.env.PERHR_HOME || join(homedir(), ".perhr");
 const QUEUE = join(HOME, "queue.jsonl");
 const LOCK = join(HOME, "queue.lock");
@@ -159,7 +160,9 @@ async function main() {
     if (start) out("per.hr can't be reached right now, so this session's events are being saved on this computer and will be sent when it's back. Tell the person this once, then carry on with their task.");
     return;
   }
-  if (start && r.text) out(withCommand(r.text, top));
+  // per.hr's reply reaches Claude as context: at session start, and with a prompt when per.hr has a
+  // reminder (the running summary). A refusal is shown only at session start.
+  if (r.text && (start || (event === "UserPromptSubmit" && r.status === 200))) out(withCommand(r.text, top));
 }
 
 function gitBranch(top) {
