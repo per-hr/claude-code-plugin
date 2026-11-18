@@ -10,7 +10,9 @@ import { gitRemote } from "./git.js";
 // (`perhr setup --step business --business-name "Studio Lark" …`), which is how /perhr:setup runs
 // them from Claude Code after asking in the chat. Progress is saved on the account.
 
-export const STEPS = ["work", "account", "business", "paid", "clients", "claude", "repos", "check", "try", "done"];
+const MARKETPLACE = "per-hr/claude-code-plugin";
+
+export const STEPS =["work", "account", "business", "paid", "clients", "claude", "repos", "check", "try", "done"];
 
 const email = (v) => (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? null : "Enter an email address.");
 const rate = (v) => (Number(v) > 0 && Number(v) <= 100000 ? null : "Enter an hourly rate, like 125.");
@@ -143,12 +145,31 @@ const STEP = {
   async claude(f) {
     // 1. The plugin
     out("Installing the per.hr plugin for Claude Code…");
+    const shell = process.platform === "win32";
+    const claude = (args, quiet = !!f.json) => execFileSync("claude", args, { stdio: quiet ? "ignore" : "inherit", shell });
     try {
-      execFileSync("claude", ["plugin", "install", "perhr@perhr", "--marketplace", "per-hr/claude-code-plugin", "--scope", "user", "--yes", "--json"], { stdio: f.json ? "ignore" : "inherit", shell: process.platform === "win32" });
-      out(green("Installed."));
+      claude(["--version"], true);
     } catch {
-      throw new Error("Couldn't run claude. Install Claude Code first (https://claude.com/claude-code), then run perhr setup --step claude again.");
+      throw new Error("Couldn't find claude. Install Claude Code first (https://claude.com/claude-code), then run perhr setup --step claude again.");
     }
+    try {
+      // Adding the marketplace again is harmless; update fetches the newest plugin version
+      claude(["plugin", "marketplace", "add", MARKETPLACE]);
+      claude(["plugin", "marketplace", "update", "perhr"]);
+      try {
+        claude(["plugin", "install", "perhr@perhr", "--scope", "user", "--yes"]);
+      } catch {
+        // Claude Code before 2.1.229 has no --yes
+        claude(["plugin", "install", "perhr@perhr", "--scope", "user"]);
+      }
+    } catch {
+      throw new Error(`Claude Code couldn't install the plugin. Run these yourself, then perhr setup --step claude again:\n  claude plugin marketplace add ${MARKETPLACE}\n  claude plugin install perhr@perhr --scope user`);
+    }
+    // An older copy already installed: bring it up to this version (best effort)
+    try {
+      claude(["plugin", "update", "perhr@perhr"], true);
+    } catch {}
+    out(green("Installed."));
     // 2. The perhr command in every terminal (and for the status line), when this run came from npx
     const fromNpx = /[\\/]_npx[\\/]/.test(process.argv[1] ?? "");
     if (fromNpx && (await confirm(f, `Install the perhr command for every terminal (npm install -g perhr@${VERSION})?`, true))) {
