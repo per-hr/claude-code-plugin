@@ -1,0 +1,15 @@
+{
+  "name": "perhr",
+  "version": "0.5.0",
+  "description": "Bill clients for your Claude Code work, from the terminal.",
+  "homepage": "https://per.hr/ai",
+  "repository": { "type": "git", "url": "git+https://github.com/per-hr/cli.git" },
+  "bugs": { "url": "https://github.com/per-hr/cli/issues" },
+  "license": "MIT",
+  "type": "module",
+  "bin": { "perhr": "bin/perhr.js" },
+  "files": ["bin", "lib", "README.md"],
+  "engines": { "node": ">=18.17" },
+  "scripts": { "test": "node --test" },
+  "keywords": ["claude-code", "time-tracking", "invoicing", "freelance", "cli"]
+}

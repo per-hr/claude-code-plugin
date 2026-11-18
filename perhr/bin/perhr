@@ -1,34 +1,5 @@
-#!/usr/bin/env bash
-# perhr: the per.hr plugin's command for /perhr:start, status and end.
-#   perhr start PAY-214      work on this Plan item (or several: PAY-214:216, PAY-214+PAY-220)
-#   perhr status             your time, agent time and cost so far
-#   perhr end "summary"      the work is finished: send the session to per.hr for review, with a client-ready summary
-#                            (pause and resume still work)
-#   perhr note "what changed" save a short note of the work so far (titles a session with no Plan item)
-#   --repo <folder> first: the session's repo, when the command runs from another folder
-STATE="$HOME/.perhr"
-[ -f "$STATE/config" ] || { echo "per.hr isn't set up yet: start a Claude Code session in a connected repo first."; exit 1; }
-SERVER="$(sed -n 's/^SERVER=//p' "$STATE/config")"
-SERVER="${SERVER:-https://per.hr}"
-KEY="$(sed -n 's/^KEY=//p' "$STATE/config")"
-TOP="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-# The session-start message gives Claude the command with --repo, so a note lands on this session
-# even when Claude is working in another folder
-if [ "$1" = "--repo" ] && [ -n "$2" ]; then TOP="$(git -C "$2" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$2")"; shift 2; fi
-SESSION="$(cat "$STATE/sessions/$(printf '%s' "$TOP" | cksum | cut -d' ' -f1)" 2>/dev/null)"
-# The key this repo's own events use (plugin 0.2.3 and later); else the last one seen
-REPOKEY="$(cat "$STATE/keys/$(printf '%s' "$TOP" | cksum | cut -d' ' -f1)" 2>/dev/null)"
-[ -n "$REPOKEY" ] && KEY="$REPOKEY"
-ACTION="$1"; shift || true
-case "$ACTION" in start|status|pause|resume|end|done|note) ;; *) echo "Usage: perhr start <ref> | status | end \"summary\" | note \"what changed\""; exit 1 ;; esac
-esc() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' | awk 'BEGIN{ORS="\\n"} {print}' | sed 's/\\n$//'; }
-EXTRA=""
-[ "$ACTION" = "start" ] && EXTRA=",\"ref\":\"$(esc "$*")\""
-{ [ "$ACTION" = "end" ] || [ "$ACTION" = "done" ] || [ "$ACTION" = "note" ]; } && EXTRA=",\"summary\":\"$(esc "$*")\""
-# The repo it ran in, so per.hr can say when it isn't connected (never its files or contents)
-REMOTE="$(git -C "$TOP" remote get-url origin 2>/dev/null || true)"
-# Record by folder name only: the same choice the hook made
-{ [ "$(sed -n 's/^FOLDER_ONLY=//p' "$STATE/config")" = "true" ] || [ -f "$HOME/.perhr/folder-only" ]; } && REMOTE=""
-FOLDER="$(basename "$TOP")"
-BODY="{\"action\":\"$ACTION\",\"sessionId\":\"$(esc "$SESSION")\",\"remote\":\"$(esc "$REMOTE")\",\"folder\":\"$(esc "$FOLDER")\"$EXTRA}"
-printf '%s' "$BODY" | curl -s -m 15 -X POST "$SERVER/api/agent/cli" -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" --data-binary @- -w '\n'
+#!/usr/bin/env node
+// The per.hr CLI, as the plugin's perhr command in Claude Code (the same program as `npx perhr`).
+const { join } = require("node:path");
+const { pathToFileURL } = require("node:url");
+import(pathToFileURL(join(__dirname, "..", "cli", "bin", "perhr.js")).href);

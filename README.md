@@ -1,50 +1,55 @@
-<a href="https://per.hr/features/ai-assisted-development"><img src="assets/banner.jpg" alt="per.hr AI-assisted development (beta): bill for work you ship with Claude Code. per.hr records your Claude Code sessions: your time, agent time, compute and what shipped." width="100%"></a>
+<a href="https://per.hr/features/ai-assisted-development"><img src="assets/banner.jpg" alt="per.hr for AI (beta): bill clients for the work you ship with Claude Code. per.hr records your Claude Code sessions: your time, agent time, compute and what shipped." width="100%"></a>
 
 # per.hr for Claude Code
 
-Logs your Claude Code sessions in [per.hr](https://per.hr): your time, agent time, compute and what shipped, matched to the client, project and Plan item. Sessions wait in per.hr's Work → To Review until you confirm them, so nothing reaches an invoice without you.
+Bill clients for your Claude Code work. The plugin logs your Claude Code sessions in [per.hr](https://per.hr): your time, agent time, compute and what shipped, matched to the client, project and Plan item. Sessions wait in per.hr's To Review until you confirm them, so nothing reaches an invoice without you.
 
-**Beta.** The plugin works with per.hr accounts in the AI-assisted work beta.
+**Beta.** The plugin works with per.hr accounts in the per.hr for AI beta.
 
 ## Install
 
-On a team, your owner or admin can send you a setup link from per.hr instead: open it, choose **Make My Key**, and run the one command it shows. It saves your key and installs the plugin, and the team's repos are already connected. Then skip to step 4.
+In any terminal:
 
-1. In per.hr, open **Configure → Data → Claude Code** and choose **Create a Key**.
-2. In a terminal, outside a Claude session:
-   ```
-   claude plugin marketplace add per-hr/claude-code-plugin
-   claude plugin install perhr@perhr --scope user
-   ```
-   Paste your key when Claude Code asks, or later in `/plugin` → Installed → perhr → Configure (at the computer: `/plugin` isn't available over Remote Control). Or save it in a file only you can read, from any terminal:
-   ```
-   mkdir -p ~/.perhr && printf '%s' 'perhr_sk_YOUR_KEY' > ~/.perhr/key && chmod 600 ~/.perhr/key
-   ```
-   A key set in `/plugin` takes priority over the file. At user scope the plugin runs in every repo with one key, and per.hr records only the repos you connect to a project. If some repos record to a different workspace (another team, or Personal), install with `--scope project` from each of those repos instead, each with that workspace's key. Use one scope per repo, never both: two copies send every event twice. `claude plugin list` shows what's installed and enabled.
-3. Start Claude Code in the repo once, then connect the repo to a project on the Claude Code card in per.hr.
-4. Optional, for cost, tokens and commits: add the settings block from the card to your user settings (`~/.claude/settings.json`, or `%USERPROFILE%\.claude\settings.json` on Windows).
+```
+npx perhr setup
+```
 
-Needs `bash`, `git` and `curl` (on Windows, the Git Bash that Claude Code uses).
+Setup signs this computer in (you approve a code at per.hr/device), installs this plugin, and walks through your business, how clients pay you, your first client and project, and linking your code folders. Inside Claude Code, `/perhr:setup` does the same in the chat.
+
+Or install the plugin yourself, outside a Claude session:
+
+```
+claude plugin marketplace add per-hr/claude-code-plugin
+claude plugin install perhr@perhr --scope user
+perhr login
+```
+
+At user scope the plugin runs in every repo, and per.hr records only the repos you link to a project. Each repo records to the workspace (Personal or a team) where it's linked. A key made in per.hr before the CLI (Configure → Data → Claude Code, or a team's setup link) still works, in `/plugin` → Installed → perhr → Configure or in `~/.perhr/key`; this computer's own key from `perhr login` takes its place.
+
+Needs Node 18.17 or later and `git`.
 
 ## Commands
 
 | Command | What it does |
 | --- | --- |
-| `/perhr:start PAY-214` | Work on a Plan item, or several: a range `PAY-214:216` or a list `PAY-214+PAY-220`. Switching items later sends the work so far to To Review on its own. Starting an item that's Done reopens it. |
-| `/perhr:status` | Which Plan items this session is recording to, your time, agent time and cost so far, and how much of the estimate is used. |
-| `/perhr:end` | The work is finished: send the session to To Review now, with a one-line summary of what shipped. Adding it to To Invoice there closes the Plan item. Then `/perhr:start` the next item in the same Claude Code session. |
+| `/perhr:start PAY-214` | Work on a Plan item, or several: a range `PAY-214:216` or a list `PAY-214+PAY-220`. Switching items later sends the work so far to To Review on its own. |
+| `/perhr:status` | This session's Plan items, your time, agent time and cost so far, and anything waiting. |
+| `/perhr:end` | The work is finished: send the session to To Review now, with a one-line summary of what shipped. |
+| `/perhr:review` | What's in To Review, to confirm or dismiss. |
+| `/perhr:setup` | Set up per.hr for AI in the chat, one step at a time. |
+| `/perhr:pause`, `/perhr:resume` | Pause and resume recording. |
 
 A branch named with the reference (for example `feat/pay-214-reset`) attaches the session to that item on its own.
 
-A session without a Plan item is titled from short notes Claude writes as it finishes each piece of work (`perhr note "what changed and in which repo"`), so background work and side projects arrive in To Review with a description. The note is a sentence or two in plain words; you can edit it before confirming.
-
-With several items, your time splits by their estimates; you can change the split in To Review before confirming. The plugin's own commands aren't counted as prompts.
+The plugin includes the `perhr` command (the same as `npx perhr`), so Claude can list and change clients, projects, time, Plan items and invoices for you. Reads run without asking. Every change shows Claude Code's own prompt with the full command, once setup adds per.hr's rules to your settings. Sending invoices and anything involving money is approved on per.hr in your browser. Rates are typed by you at the keyboard, never by Claude.
 
 ## What's sent
 
-Hook events (session start and end, prompt submitted, turn finished, subagent started and stopped) with the session id, the repo's remote, folder name and branch, the plugin's version, and whether a prompt was one of the plugin's commands (checked on your computer). Notes and `/perhr:end` summaries are sent as Claude wrote them; Claude writes them about the work itself, never mentioning Claude, AI or the tools used, since clients see them on invoices. Prompts, code and file contents stay on your computer. per.hr discards events from repos you haven't connected, and never connects to your repos on GitHub, Bitbucket or anywhere else.
+Hook events (session start and end, prompt submitted, turn finished, subagent started and stopped) with the session id, the repo's remote, folder name and branch, the time, the plugin's version, and whether a prompt was one of the plugin's commands (checked on your computer). Notes and `/perhr:end` summaries are sent as Claude wrote them; Claude writes them about the work itself, never mentioning Claude, AI or the tools used, since clients see them on invoices. Prompts, code and file contents stay on your computer. per.hr discards events from repos you haven't linked, and never connects to your repos on GitHub, Bitbucket or anywhere else.
 
-**Record by folder name only** (0.3.2 and later): turn on `folder_only` in `/plugin` → Installed → perhr → Configure, or create the file `~/.perhr/folder-only`. The plugin then sends each repo's folder name in place of its remote address, so per.hr never sees the host, owner or repo name. Connect the repos to projects again after turning it on.
+When per.hr can't be reached, events wait on your computer (`~/.perhr/queue.jsonl`) and go out in order once it's back.
+
+**Record by folder name only:** turn on `folder_only` in `/plugin` → Installed → perhr → Configure, or create the file `~/.perhr/folder-only`. The plugin then sends each repo's folder name in place of its remote address. Link the repos to projects again after turning it on.
 
 **Commits and pull requests:** Claude Code adds a "Co-Authored-By: Claude" line to commits and a "Generated with Claude Code" line to pull requests unless you turn them off. To keep them out, add `"attribution": { "commit": "", "pr": "" }` to your user settings (`~/.claude/settings.json`). per.hr itself never writes to commits, pull requests, issues or tickets.
 
