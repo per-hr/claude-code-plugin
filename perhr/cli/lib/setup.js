@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { call, currentTop, VERSION } from "./api.js";
 import { apply, applyCompute, computeState, plan, SETTINGS, SNIPPET } from "./claude-settings.js";
-import { apiBase, DIR, loadKey } from "./config.js";
+import { apiBase, DIR, loadKey, saveConfig } from "./config.js";
 import { login } from "./login.js";
 import { bold, choose, confirm, cyan, dim, green, money, openBrowser, out, tty, value, yellow } from "./ui.js";
 import { gitRemote } from "./git.js";
@@ -57,6 +57,33 @@ export async function setupStatus({ json }) {
   return s;
 }
 
+/**
+ * On someone else's team: the rest of setup runs in that team, where the owner or an admin has set up
+ * the business, payments and clients. Until the person is on a team, setup says how to get there.
+ */
+async function useTeam(f) {
+  const me = await call("GET", "me");
+  const teams = (me.workspaces ?? []).filter((w) => !w.personal);
+  if (!teams.length) {
+    out(yellow("You're not on a team in per.hr yet."));
+    out(`Ask the team's owner to invite you from their team's People page, accept the invite in your email, then run ${cyan("perhr setup")} again. Setup goes on with this computer meanwhile.`);
+    return;
+  }
+  const names = teams.map((t) => t.name).join(", ");
+  let team = teams.length === 1 ? teams[0] : null;
+  if (!team && typeof f.team === "string") {
+    team = teams.find((t) => t.id === f.team || t.name.toLowerCase() === f.team.toLowerCase());
+    if (!team) throw new Error(`--team is one of: ${names}.`);
+  }
+  if (!team) {
+    if (!tty()) throw new Error(`Say which team this computer is for with --team: ${names}.`);
+    const id = await choose({}, "team", "Which team is this computer for?", teams.map((t) => ({ id: t.id, label: t.name, hint: t.role })));
+    team = teams.find((t) => t.id === id);
+  }
+  saveConfig({ workspace: team.id });
+  out(`Using ${bold(team.name)}. Its owner or an admin sets up the business, payments and clients; you link your code folders to its projects.`);
+}
+
 const STEP = {
   async work(f) {
     const work = await choose(f, "work", "How do you work?", [
@@ -66,6 +93,7 @@ const STEP = {
     ]);
     await call("PATCH", "setup/work", { work });
     out(green("Saved."));
+    if (work === "member") await useTeam(f);
   },
 
   async account(f) {
@@ -247,7 +275,15 @@ const STEP = {
     const repo = f.repo ?? here?.repo;
     if (!repo) throw new Error("Run this inside a git folder, or pass --repo owner/name.");
     const projects = s.projects ?? [];
-    if (!projects.length) throw new Error("Add a client and project first: perhr setup --step clients");
+    if (!projects.length) {
+      // On someone else's team: projects come from the team, once the owner has added this person
+      if (s.readiness?.work === "member" || !s.business) {
+        out(yellow("No projects to link this folder to yet."));
+        out(`Your team's projects show here once you're on the team and on a project. Ask the team's owner, then run ${cyan("perhr setup --step repos")} in this folder.`);
+        return "stop";
+      }
+      throw new Error("Add a client and project first: perhr setup --step clients");
+    }
     const projectId = f.project
       ? (projects.find((p) => p.id === f.project || p.name.toLowerCase() === String(f.project).toLowerCase())?.id ?? null)
       : await choose(f, "project", `Which project is ${bold(repo)} for?`, projects.map((p) => ({ id: p.id, label: p.name, hint: p.clientName ?? "" })));
@@ -304,7 +340,7 @@ export async function setup(f) {
     const needed = !!here && (!here.plugin || !here.rules);
     if (!st?.applies || (st.done && step !== "check" && !needed)) continue;
     out(`\n${bold(st.title)}`);
-    await STEP[step](f, s);
+    if ((await STEP[step](f, s)) === "stop") break;
   }
 }
 

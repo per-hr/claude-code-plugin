@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 import { gitRemote } from "../cli/lib/git.js";
 import { repoState, stateFile, writeJsonAtomic } from "../cli/lib/config.js";
 
-const VERSION = "0.5.4";
+const VERSION = "0.5.5";
 const HOME = process.env.PERHR_HOME || join(homedir(), ".perhr");
 const QUEUE = join(HOME, "queue.jsonl");
 const LOCK = join(HOME, "queue.lock");
