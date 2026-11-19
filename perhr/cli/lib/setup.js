@@ -5,7 +5,7 @@ import { call, currentTop, VERSION } from "./api.js";
 import { apply, applyCompute, computeState, plan, SETTINGS, SNIPPET } from "./claude-settings.js";
 import { apiBase, DIR, loadKey, saveConfig } from "./config.js";
 import { login } from "./login.js";
-import { bold, choose, confirm, cyan, dim, green, money, openBrowser, out, tty, value, yellow } from "./ui.js";
+import { bold, choose, chooseMany, confirm, cyan, dim, green, money, openBrowser, out, tty, value, yellow } from "./ui.js";
 import { gitRemote } from "./git.js";
 
 // `perhr setup`: the ten steps, in a terminal with questions, or one step at a time with flags
@@ -61,9 +61,17 @@ export async function setupStatus({ json }) {
  * On someone else's team: the rest of setup runs in that team, where the owner or an admin has set up
  * the business, payments and clients. Until the person is on a team, setup says how to get there.
  */
-async function useTeam(f) {
+async function useTeam(f, own = false) {
   const me = await call("GET", "me");
   const teams = (me.workspaces ?? []).filter((w) => !w.personal);
+  // Their own clients too: setup stays in Personal for the business, payments and clients, and each
+  // code folder is linked to a project of their own or of a team
+  if (own) {
+    saveConfig({ workspace: null });
+    if (teams.length) out(`You're on ${teams.map((t) => bold(t.name)).join(" and ")} too. Setup goes on with your own business here; when you link a code folder, you choose a project of your own or of the team's.`);
+    else out(dim(`You're not on a team in per.hr yet. Setup goes on with your own business. When a team's owner invites you, accept it, then link that team's code folders with ${cyan("perhr setup --step repos")}.`));
+    return;
+  }
   if (!teams.length) {
     out(yellow("You're not on a team in per.hr yet."));
     out(`Ask the team's owner to invite you from their team's People page, accept the invite in your email, then run ${cyan("perhr setup")} again. Setup goes on with this computer meanwhile.`);
@@ -86,14 +94,14 @@ async function useTeam(f) {
 
 const STEP = {
   async work(f) {
-    const work = await choose(f, "work", "How do you work?", [
+    const work = await chooseMany(f, "work", "How do you work? Choose all that apply.", [
       { id: "solo", label: "On my own, for clients" },
       { id: "shop", label: "A small dev shop with a few people" },
       { id: "member", label: "On someone else's team" },
     ]);
     await call("PATCH", "setup/work", { work });
     out(green("Saved."));
-    if (work === "member") await useTeam(f);
+    if (work.includes("member")) await useTeam(f, work.length > 1);
   },
 
   async account(f) {
@@ -274,7 +282,21 @@ const STEP = {
     out(dim("These are the git folders on this computer where you run Claude Code. per.hr never reads your code; it records which folder a session ran in."));
     const repo = f.repo ?? here?.repo;
     if (!repo) throw new Error("Run this inside a git folder, or pass --repo owner/name.");
-    const projects = s.projects ?? [];
+    let projects = (s.projects ?? []).map((p) => ({ ...p, ws: undefined, repos: s.repos ?? [] }));
+    // Their own clients and a team's: projects from every workspace they're in, each with where it belongs.
+    // A folder linked to a team's project records to that team.
+    const works = s.readiness?.works ?? [];
+    if (works.includes("member") && works.length > 1) {
+      const me = await call("GET", "me").catch(() => null);
+      const name = (w) => (w.personal ? "Personal" : w.name);
+      const hereWs = me?.workspace ?? null;
+      if (hereWs) projects = projects.map((p) => ({ ...p, where: name(hereWs) }));
+      for (const w of me?.workspaces ?? []) {
+        if (w.id === hereWs?.id) continue;
+        const o = await call("GET", "setup", undefined, { workspace: w.personal ? "" : w.id }).catch(() => null);
+        for (const p of o?.projects ?? []) projects.push({ ...p, ws: w.personal ? "" : w.id, where: name(w), repos: o.repos ?? [] });
+      }
+    }
     if (!projects.length) {
       // On someone else's team: projects come from the team, once the owner has added this person
       if (s.readiness?.work === "member" || !s.business) {
@@ -286,12 +308,16 @@ const STEP = {
     }
     const projectId = f.project
       ? (projects.find((p) => p.id === f.project || p.name.toLowerCase() === String(f.project).toLowerCase())?.id ?? null)
-      : await choose(f, "project", `Which project is ${bold(repo)} for?`, projects.map((p) => ({ id: p.id, label: p.name, hint: p.clientName ?? "" })));
+      : await choose(f, "project", `Which project is ${bold(repo)} for?`, projects.map((p) => ({ id: p.id, label: p.name, hint: [p.clientName, p.where].filter(Boolean).join(" · ") })));
     if (!projectId) throw new Error(`No project named ${f.project}.`);
-    const existing = (s.repos ?? []).find((r) => r.repo.toLowerCase() === repo.toLowerCase());
-    if (existing) await call("PATCH", `repos/${existing.id}`, { projectId });
-    else await call("POST", "repos", { repo, projectId });
-    out(green(`Linked ${repo}.`));
+    const chosen = projects.find((p) => p.id === projectId);
+    const existing = (chosen?.repos ?? []).find((r) => r.repo.toLowerCase() === repo.toLowerCase());
+    const at = chosen?.ws === undefined ? {} : { workspace: chosen.ws };
+    if (existing) await call("PATCH", `repos/${existing.id}`, { projectId }, at);
+    else await call("POST", "repos", { repo, projectId }, at);
+    out(green(`Linked ${repo}${chosen?.where ? ` to ${chosen.name} (${chosen.where})` : ""}.`));
+    // A project in another workspace (a team's): its clients and their privacy are that workspace's to set
+    if (chosen?.ws !== undefined) return;
     const client = projects.find((p) => p.id === projectId)?.clientName;
     out(dim(`Keep AI Private is on for ${client ?? "this client"}: invoices never mention AI, agent time, compute or models. Change it with perhr client edit "${client ?? ""}" --show-ai.`));
   },

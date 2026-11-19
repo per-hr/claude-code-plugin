@@ -7,7 +7,7 @@ Help me finish setting up per.hr for AI, in this chat.
 
 1. Run `perhr setup status --json` and show me the steps as a short checklist: done, not done, or done by my team's owner. If it says this computer isn't signed in, run `perhr login --no-browser`, show me the code and the link, and tell me to approve it in my browser; then check again.
 2. For the next step that isn't done, tell me in a sentence or two what it's for, then ask me for what it needs, in the chat. Then run it with flags and `--json`, and tell me the result in one line. The flags for each step:
-   - work: `perhr setup --step work --work solo|shop|member` (with `member`, the rest of setup uses my team; if I'm on more than one, ask me which and add `--team "<team name>"`)
+   - work: `perhr setup --step work --work solo|shop|member`. More than one can apply, with commas: `--work solo,member`. With `member` alone, the rest of setup uses my team; if I'm on more than one, ask me which and add `--team "<team name>"`
    - account: `perhr setup --step account --note "<anything for per.hr>"`
    - business: `perhr setup --step business --business-name "…" --name "…" --address "…" --email …`
    - paid: `perhr setup --step paid --stripe`, or instructions with `--zelle`, `--venmo`, `--paypal`, `--payoneer`, `--other`

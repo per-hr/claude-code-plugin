@@ -100,6 +100,25 @@ export async function choose(flags, name, question, options) {
   }
 }
 
+/** Choose one or more: --flag a,b, else numbers in a terminal ("1" or "1,3") */
+export async function chooseMany(flags, name, question, options) {
+  const f = flags[name];
+  if (typeof f === "string") {
+    const want = f.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+    const hits = options.filter((o) => want.includes(o.id) || want.includes(o.label.toLowerCase()));
+    if (!want.length || hits.length !== new Set(want).size) throw new UsageError(`--${name} is one or more of: ${options.map((o) => o.id).join(", ")} (commas between them).`);
+    return hits.map((o) => o.id);
+  }
+  if (!tty()) throw new UsageError(`Missing --${name} (one or more of ${options.map((o) => o.id).join(", ")}, commas between them).`);
+  out(question);
+  options.forEach((o, i) => out(`  ${bold(i + 1)}. ${o.label}${o.hint ? dim(`  ${o.hint}`) : ""}`));
+  for (;;) {
+    const a = await ask("Choose one or more numbers, like 1 or 1,3: ");
+    const nums = [...new Set(a.split(/[\s,]+/).filter(Boolean).map(Number))];
+    if (nums.length && nums.every((n) => Number.isInteger(n) && n >= 1 && n <= options.length)) return nums.sort((x, y) => x - y).map((n) => options[n - 1].id);
+  }
+}
+
 /** Yes or no: --yes, else asked in a terminal, else the default */
 export async function confirm(flags, question, dflt = true) {
   if (flags.yes) return true;

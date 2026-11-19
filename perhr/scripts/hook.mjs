@@ -3,20 +3,26 @@
 // file contents. per.hr records nothing for repos you haven't linked there. When per.hr can't be
 // reached, events wait in ~/.perhr/queue.jsonl (never with a key) and go out, in order, with the next
 // one that gets through, sent with the key this computer has then.
+// While Claude uses tools, a heartbeat goes out every few minutes (PostToolUse), so a long turn isn't
+// taken for a stuck one: the same fields, nothing about the tool, and it's never queued.
 // The reply is printed for SessionStart, and for a prompt when per.hr sends a reminder; Claude Code
 // shows it to Claude as context.
-import { closeSync, existsSync, openSync, readFileSync, rmSync, statSync, writeFileSync, appendFileSync, mkdirSync } from "node:fs";
+import { closeSync, existsSync, openSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync, appendFileSync, mkdirSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gitRemote } from "../cli/lib/git.js";
 import { repoState, stateFile, writeJsonAtomic } from "../cli/lib/config.js";
 
-const VERSION = "0.5.5";
+const VERSION = "0.5.6";
 const HOME = process.env.PERHR_HOME || join(homedir(), ".perhr");
 const QUEUE = join(HOME, "queue.jsonl");
 const LOCK = join(HOME, "queue.lock");
 const MAX_QUEUE = 5000;
+// The heartbeat: at most one per session in this long
+const BEATS = join(HOME, "beats");
+const BEAT_MS = 4 * 60_000;
 const env = (...names) => names.map((n) => process.env[n]).find((v) => v !== undefined && v !== "") ?? "";
 
 async function stdin() {
@@ -102,6 +108,27 @@ async function flush(server, key) {
   }
 }
 
+/** True when this session's heartbeat is due (and marks it sent): most tool calls end here, quickly */
+function beatDue(session) {
+  const file = join(BEATS, createHash("sha256").update(session).digest("hex").slice(0, 16));
+  const now = Date.now();
+  try {
+    if (now - statSync(file).mtimeMs < BEAT_MS) return false;
+  } catch {}
+  try {
+    mkdirSync(BEATS, { recursive: true });
+    writeFileSync(file, "");
+    // Marks from sessions long over
+    for (const f of readdirSync(BEATS)) {
+      const p = join(BEATS, f);
+      if (now - statSync(p).mtimeMs > 86_400_000) rmSync(p, { force: true });
+    }
+  } catch {
+    return false;
+  }
+  return true;
+}
+
 async function main() {
   const k = keyOf();
   if (!k) return;
@@ -115,6 +142,8 @@ async function main() {
   const event = String(input.hook_event_name ?? "");
   const session = String(input.session_id ?? "");
   if (!event || !session) return;
+  const beat = event === "PostToolUse";
+  if (beat && !beatDue(session)) return;
   const dir = process.env.CLAUDE_PROJECT_DIR || input.cwd || process.cwd();
   const g = gitRemote(dir);
   const top = g?.root ?? dir;
@@ -132,6 +161,12 @@ async function main() {
     at: new Date().toISOString(),
     event: { session_id: session, hook_event_name: event, agent_id: String(input.agent_id ?? "") },
   };
+
+  // The heartbeat: sent once, never queued (a late one says nothing), and nothing else changes
+  if (beat) {
+    await post(server, k.key, body, 4000);
+    return;
+  }
 
   // For the perhr command: this folder's current session, and the key its events use
   try {
