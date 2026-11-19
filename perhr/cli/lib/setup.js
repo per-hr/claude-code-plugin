@@ -148,29 +148,36 @@ const STEP = {
     if (!s.paid) return out(dim("The team's owner sets up how clients pay. Nothing to do here."));
     const p = s.paid;
     if (p.stripe || p.paypal) out(green(`Connected: ${[p.stripe && "Stripe", p.paypal && "PayPal"].filter(Boolean).join(" and ")}.`));
-    const how = f.stripe ? "stripe" : f.zelle || f.venmo || f.other || f.paypal || f.payoneer ? "instructions" : await choose(f, "how", "How do clients pay you?", [
+    // Both can be on at once: clients pay by card through Stripe, or by the instructions printed on the invoice
+    const stripe = !!f.stripe;
+    const written = !!(f.zelle || f.venmo || f.other || f.paypal || f.payoneer);
+    const how = stripe && written ? "both" : stripe ? "stripe" : written ? "instructions" : await choose(f, "how", "How do clients pay you?", [
       { id: "stripe", label: "Cards and bank transfers through Stripe", hint: "Stripe can take a few days to verify; instructions work meanwhile" },
       { id: "instructions", label: "Payment instructions on the invoice", hint: "Zelle, Venmo, PayPal, Payoneer, or anything else" },
+      { id: "both", label: "Both", hint: "clients choose; the instructions also cover invoices while Stripe verifies" },
       ...(p.stripe || p.paypal ? [{ id: "keep", label: "Keep what's connected" }] : []),
     ]);
-    if (how === "stripe") {
+    if (how === "keep") return;
+    // The instructions first (asked here), then Stripe, which finishes in the browser
+    if (how === "instructions" || how === "both") {
+      out(dim("These go to clients only in the PDF attached to each invoice email. A public invoice link shows your name and the pay buttons, never these."));
+      const fields = {
+        paymentZelle: await value(f, "zelle", "Zelle (email or phone)", { required: false, fallback: p.zelle ?? undefined }),
+        paymentVenmo: await value(f, "venmo", "Venmo (@username)", { required: false, fallback: p.venmo ?? undefined }),
+        paymentPaypal: await value(f, "paypal", "PayPal (email or paypal.me link)", { required: false, fallback: p.paypalContact ?? undefined }),
+        paymentPayoneer: await value(f, "payoneer", "Payoneer (a payment link, or account details)", { required: false, fallback: p.payoneer ?? undefined }),
+        paymentOther: await value(f, "other", "Other instructions (bank, check)", { required: false, fallback: p.other ?? undefined }),
+      };
+      if (!Object.values(fields).some(Boolean)) throw new Error("Add at least one way to pay.");
+      await call("PATCH", s.business?.personal ? "profile" : "workspace", fields);
+      out(green(how === "both" ? "Saved the instructions." : "Saved."));
+    }
+    if (how === "stripe" || how === "both") {
       const r = await call("POST", "payouts/stripe", { returnTo: "/setup/claude-code" });
       if (r.connected) return out(green("Stripe is connected."));
       out(`Finish connecting on Stripe: ${cyan(r.url)}`);
       openBrowser(r.url);
-      return;
     }
-    if (how === "keep") return;
-    const fields = {
-      paymentZelle: await value(f, "zelle", "Zelle (email or phone)", { required: false, fallback: p.zelle ?? undefined }),
-      paymentVenmo: await value(f, "venmo", "Venmo (@username)", { required: false, fallback: p.venmo ?? undefined }),
-      paymentPaypal: await value(f, "paypal", "PayPal (email or paypal.me link)", { required: false, fallback: p.paypalContact ?? undefined }),
-      paymentPayoneer: await value(f, "payoneer", "Payoneer (link)", { required: false, fallback: p.payoneer ?? undefined }),
-      paymentOther: await value(f, "other", "Other instructions (bank, check)", { required: false, fallback: p.other ?? undefined }),
-    };
-    if (!Object.values(fields).some(Boolean)) throw new Error("Add at least one way to pay.");
-    await call("PATCH", s.business?.personal ? "profile" : "workspace", fields);
-    out(green("Saved."));
   },
 
   async clients(f, s) {

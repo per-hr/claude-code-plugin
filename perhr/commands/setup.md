@@ -10,7 +10,7 @@ Help me finish setting up per.hr for AI, in this chat.
    - work: `perhr setup --step work --work solo|shop|member`. More than one can apply, with commas: `--work solo,member`. With `member` alone, the rest of setup uses my team; if I'm on more than one, ask me which and add `--team "<team name>"`
    - account: `perhr setup --step account --note "<anything for per.hr>"`
    - business: `perhr setup --step business --business-name "…" --name "…" --address "…" --email …`
-   - paid: `perhr setup --step paid --stripe`, or instructions with `--zelle`, `--venmo`, `--paypal`, `--payoneer`, `--other`
+   - paid: `perhr setup --step paid --stripe`, or instructions with `--zelle`, `--venmo`, `--paypal`, `--payoneer`, `--other`, or both (`--stripe` together with any of the instruction flags); ask me which
    - clients: `perhr setup --step clients --name "…" --email … --basis time|delivered --project "…"` (add `--send` to send the client's confirmation email now; ask me first)
    - claude: `perhr setup --step claude --yes` (it changes my Claude Code settings: tell me what it adds and ask me first)
    - repos: `perhr setup --step repos --project "…"` in the repo's folder (ask me which project)
