@@ -11,7 +11,11 @@ import { bold, choose, confirm, cyan, dim, green, hours, money, openBrowser, out
 
 // Each command returns data (printed as JSON with --json) and prints for people otherwise.
 
-const today = () => new Date().toISOString().slice(0, 10);
+// Today on this computer (not UTC's day, which is tomorrow already in an American evening)
+const today = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 const shortDate = (d) => (d ? new Date(d).toISOString().slice(0, 10) : "");
 
 /** A client by name (or id), case-insensitive, unique prefix allowed */

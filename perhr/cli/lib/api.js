@@ -29,8 +29,18 @@ export function exitCodeOf(e) {
   return 1;
 }
 
+// This computer's time zone, so "today" on per.hr is the person's day
+const ZONE = (() => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+  } catch {
+    return "";
+  }
+})();
+
 const headers = (extra = {}) => ({
   "Content-Type": "application/json",
+  ...(ZONE ? { "X-Perhr-Timezone": ZONE } : {}),
   "User-Agent": `perhr-cli/${VERSION} (${platform()})`,
   "X-Perhr-Client": `perhr-cli/${VERSION}`,
   ...extra,

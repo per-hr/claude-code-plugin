@@ -1,6 +1,6 @@
 {
   "name": "perhr",
-  "version": "0.5.6",
+  "version": "0.5.7",
   "description": "Bill clients for your Claude Code work, from the terminal.",
   "homepage": "https://per.hr/ai",
   "repository": { "type": "git", "url": "git+https://github.com/per-hr/cli.git" },
