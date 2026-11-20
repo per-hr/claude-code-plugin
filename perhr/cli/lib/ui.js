@@ -15,6 +15,11 @@ export const yellow = paint(33);
 export const red = paint(31);
 export const cyan = paint(36);
 
+/** True when this run came from npx: there may be no perhr command on the PATH */
+export const fromNpx = /[\\/]_npx[\\/]/.test(process.argv[1] ?? "");
+/** A perhr command as this person should type it: with npx in front when that's how they got here */
+export const typed = (command, npx = fromNpx) => (npx && /^perhr\b/.test(command) ? `npx ${command}` : command);
+
 export const out = (...a) => console.log(...a);
 export const err = (...a) => console.error(...a);
 export const money = (n) => `$${Number(n ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

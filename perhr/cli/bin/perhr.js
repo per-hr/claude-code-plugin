@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { ApiError, exitCodeOf, setRepo, VERSION } from "../lib/api.js";
 import { COMMANDS, SESSION, session } from "../lib/commands.js";
-import { closeQuestions, cyan, dim, err, out, parseArgs, red, UsageError } from "../lib/ui.js";
+import { closeQuestions, cyan, dim, err, out, parseArgs, red, typed, UsageError } from "../lib/ui.js";
 
 const HELP = `perhr ${VERSION}: bill clients for your Claude Code work, from the terminal
 
@@ -65,8 +65,10 @@ main()
       process.exit(2);
     }
     if (e instanceof ApiError) {
-      if (json) process.stdout.write(JSON.stringify({ error: { code: e.code, message: e.message, ...(e.fix ? { fix: e.fix } : {}) } }) + "\n");
-      else err(`${red(e.message)}${e.fix ? `\n${dim("Next:")} ${cyan(e.fix)}` : ""}`);
+      // The command that fixes it, as this person can type it (npx perhr … when there's no perhr on the PATH)
+      const fix = e.fix ? typed(e.fix) : undefined;
+      if (json) process.stdout.write(JSON.stringify({ error: { code: e.code, message: e.message, ...(fix ? { fix } : {}) } }) + "\n");
+      else err(`${red(e.message)}${fix ? `\n${dim("Next:")} ${cyan(fix)}` : ""}`);
       process.exit(exitCodeOf(e));
     }
     if (json) process.stdout.write(JSON.stringify({ error: { code: "error", message: e.message } }) + "\n");

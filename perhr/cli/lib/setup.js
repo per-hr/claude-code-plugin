@@ -5,7 +5,7 @@ import { call, currentTop, VERSION } from "./api.js";
 import { apply, applyCompute, computeState, plan, SETTINGS, SNIPPET } from "./claude-settings.js";
 import { apiBase, DIR, loadKey, saveConfig } from "./config.js";
 import { login } from "./login.js";
-import { bold, choose, chooseMany, confirm, cyan, dim, green, money, openBrowser, out, tty, value, yellow } from "./ui.js";
+import { bold, choose, chooseMany, confirm, cyan, dim, fromNpx, green, money, openBrowser, out, tty, typed, value, yellow } from "./ui.js";
 import { gitRemote } from "./git.js";
 
 // `perhr setup`: the ten steps, in a terminal with questions, or one step at a time with flags
@@ -52,7 +52,7 @@ export async function setupStatus({ json }) {
   for (const st of s.steps) out(line(st, here));
   if (s.beta) out(dim(`\nper.hr for AI: ${s.beta.approval}${s.beta.trialEndsAt ? `, trial until ${String(s.beta.trialEndsAt).slice(0, 10)}` : ""}`));
   const next = s.next ?? (here.plugin ? null : "claude");
-  out(next ? `\nNext: ${cyan(`perhr setup --step ${next}`)}` : `\n${green("Setup is done.")}`);
+  out(next ? `\nNext: ${cyan(typed(`perhr setup --step ${next}`))}` : `\n${green("Setup is done.")}`);
   if (!next && !here.rules) out(dim(`per.hr's rules aren't in your Claude Code settings on this computer, so Claude Code asks before every perhr command. Add them: ${cyan("perhr setup --step claude")}`));
   return s;
 }
@@ -238,8 +238,9 @@ const STEP = {
       claude(["plugin", "update", "perhr@perhr"], true);
     } catch {}
     out(green("Installed."));
+    // Claude Code's installer notes any plugin option left unset; the only one here is the optional key
+    if (!f.json) out(dim("If Claude Code noted an option that isn't set, that's the plugin's optional per.hr key. Leave it empty; signing in gives this computer a key of its own."));
     // 2. The perhr command in every terminal (and for the status line), when this run came from npx
-    const fromNpx = /[\\/]_npx[\\/]/.test(process.argv[1] ?? "");
     if (fromNpx && (await confirm(f, `Install the perhr command for every terminal (npm install -g perhr@${VERSION})?`, true))) {
       try {
         execFileSync("npm", ["install", "-g", `perhr@${VERSION}`], { stdio: f.json ? "ignore" : "inherit", shell: process.platform === "win32" });
