@@ -1,12 +1,13 @@
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { call, currentTop, VERSION } from "./api.js";
 import { apply, applyCompute, computeState, plan, SETTINGS, SNIPPET } from "./claude-settings.js";
 import { apiBase, DIR, loadKey, saveConfig } from "./config.js";
 import { login } from "./login.js";
 import { bold, choose, chooseMany, confirm, cyan, dim, fromNpx, green, money, openBrowser, out, tty, typed, value, yellow } from "./ui.js";
 import { gitRemote } from "./git.js";
+import { addHooks, codexHere, COMMAND, EVENTS, HOOKS, installHook, removeHooks } from "./codex.js";
 
 // `perhr setup`: the ten steps, in a terminal with questions, or one step at a time with flags
 // (`perhr setup --step business --business-name "Studio Lark" …`), which is how /perhr:setup runs
@@ -338,6 +339,40 @@ const STEP = {
     if (!here.plugin) out(`  ${yellow("○")} The Claude Code plugin isn't installed on this computer.${dim("  → perhr setup --step claude")}`);
     else if (!existsSync(join(DIR, "plugin.json"))) out(`  ${yellow("○")} The plugin is installed and hasn't started a session yet. Start Claude Code in a linked folder and send a message.`);
     else out(`  ${green("✓")} The Claude Code plugin has started a session on this computer.`);
+    for (const l of codexLines()) out(l);
+  },
+
+  // Codex, before launch: only for accounts per.hr has turned it on for (GET me says ai.codex). Not one
+  // of the listed steps, and refused like an unknown step for everyone else.
+  async codex(f) {
+    if (f.remove) {
+      const n = removeHooks();
+      out(n ? green(`Removed per.hr's hooks from ${HOOKS}.`) + dim(" Everything else in the file stays.") : dim("per.hr's hooks weren't in Codex's hooks.json."));
+      return;
+    }
+    out("per.hr records Codex sessions with a hook: a small script Codex runs when a session starts, when you prompt, and when a turn ends.");
+    out(dim("  It sends what the Claude Code plugin sends (the session, its times, the repo and branch) and Codex's token counts by model."));
+    out(dim("  Never your prompts, your code, or Codex's replies."));
+    const here = codexHere();
+    if (!here.codex) out(yellow(`\nCodex hasn't run on this computer yet (there's no ${dirname(HOOKS)}). Setup adds the hooks anyway; Codex picks them up when you install it.`));
+    installHook();
+    if (here.installed) {
+      out(green("\nper.hr's hooks are already in Codex's hooks.json.") + dim(" The hook itself was brought up to this version."));
+    } else {
+      out(`\nSetup adds to ${HOOKS}:`);
+      out(`  ${EVENTS.length} entries that run ${COMMAND}`);
+      out(dim("  Everything already in the file stays."));
+      if (!(await confirm(f, "Add them?", !!f.yes))) return void out(dim("Skipped. Add them later with perhr setup --step codex."));
+      const backup = addHooks();
+      out(green("Added.") + (backup ? dim(` The previous file is saved as ${backup}.`) : ""));
+    }
+    if (!here.heard) {
+      out(`\nThe next time you start Codex, it shows ${bold("Hooks need review")}:`);
+      out(`  1. Choose ${bold("Review hooks")} and check that each one runs ${COMMAND}.`);
+      out(`  2. Press ${bold("t")} to trust all.`);
+      out(dim("  Codex runs the hooks only after that. perhr doctor shows when per.hr has heard from them."));
+    }
+    out(dim("\nOne difference from Claude Code: Codex's sandbox keeps it off the network, so it can't write per.hr's running summary. Write the summary when you confirm the session in To Review, or run perhr note yourself."));
   },
 
   async try() {
@@ -352,9 +387,21 @@ const STEP = {
   },
 };
 
+/** Codex on this computer, for perhr doctor and the check step: nothing at all unless per.hr's hooks were set up here */
+export function codexLines() {
+  const c = codexHere();
+  if (!c.installed && !c.partly && !c.files) return [];
+  if (!c.installed) return [`  ${yellow("○")} per.hr's Codex hooks are missing from ${HOOKS}.${dim("  → perhr setup --step codex")}`];
+  if (!c.heard) return [`  ${yellow("○")} per.hr's hooks are in Codex and haven't run yet. Start Codex, choose Review hooks, check them, and press t to trust all.`];
+  return [`  ${green("✓")} Codex has run per.hr's hook (${c.heard.version}, last ${new Date(c.heard.at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}).`];
+}
+
+/** Codex is turned on for this account (before launch, by per.hr) */
+const codexOn = async () => !!(await call("GET", "me").catch(() => null))?.ai?.codex;
+
 export async function setup(f) {
   if (f.step) {
-    if (!STEP[f.step]) throw new Error(`Steps: ${STEPS.join(", ")}.`);
+    if (!STEP[f.step] || (f.step === "codex" && !(await codexOn()))) throw new Error(`Steps: ${STEPS.join(", ")}.`);
     const s = f.step === "account" ? null : await call("GET", "setup");
     await STEP[f.step](f, s);
     return f.json ? call("GET", "setup") : undefined;
@@ -375,6 +422,11 @@ export async function setup(f) {
     if (!st?.applies || (st.done && step !== "check" && !needed)) continue;
     out(`\n${bold(st.title)}`);
     if ((await STEP[step](f, s)) === "stop") break;
+  }
+  // Codex, for accounts it's turned on for, when this computer doesn't have per.hr's hooks yet
+  if ((await codexOn()) && !codexHere().installed) {
+    out(`\n${bold("Codex")}`);
+    if (await confirm(f, "Set up Codex on this computer too?", false)) await STEP.codex(f);
   }
 }
 

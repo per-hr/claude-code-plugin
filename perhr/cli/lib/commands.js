@@ -5,7 +5,8 @@ import { join } from "node:path";
 import { apiBase, DIR, forgetKey, loadConfig, loadKey, repoState, saveConfig } from "./config.js";
 import { removeOurs, SETTINGS } from "./claude-settings.js";
 import { login } from "./login.js";
-import { setup, setupStatus } from "./setup.js";
+import { codexLines, setup, setupStatus } from "./setup.js";
+import { codexHere, removeHooks } from "./codex.js";
 import { gitRemote } from "./git.js";
 import { bold, choose, confirm, cyan, dim, green, hours, money, openBrowser, out, table, tty, UsageError, value, yellow } from "./ui.js";
 
@@ -96,11 +97,15 @@ export const COMMANDS = {
       execFileSync("claude", ["plugin", "uninstall", "perhr@perhr", "--scope", "user"], { stdio: "ignore", shell: process.platform === "win32" });
       plugin = true;
     } catch {}
+    // per.hr's Codex hooks, where they were set up: out of Codex's hooks.json before their script is deleted
+    const cx = codexHere();
+    const codex = cx.installed || cx.partly ? removeHooks() > 0 : false;
     const hadDir = existsSync(DIR);
     if (hadDir) rmSync(DIR, { recursive: true, force: true });
     if (!f.json) {
       out(green("\nRemoved from this computer."));
       out(`  ${plugin ? green("✓") : yellow("○")} ${plugin ? "The plugin is uninstalled." : "Claude Code didn't uninstall the plugin (it may not be installed). To check: claude plugin list"}`);
+      if (codex) out(`  ${green("✓")} per.hr's hooks are out of Codex's hooks.json.`);
       if (settingsError) out(`  ${yellow("○")} ${settingsError}`);
       else out(`  ${green("✓")} Claude Code settings: ${settings.rules} rules${settings.statusLine ? ", the status line" : ""}${settings.compute ? ", compute" : ""} removed${settings.rules || settings.statusLine || settings.compute ? dim(` (the previous file is ${SETTINGS}.perhr-backup)`) : ""}.`);
       out(dim("\nStill yours to do, if they apply:"));
@@ -108,7 +113,7 @@ export const COMMANDS = {
       out(dim("  The perhr command, if you installed it for every terminal: npm uninstall -g perhr"));
       out(dim("  Closing your per.hr account is separate, in Settings on per.hr."));
     }
-    return { removed: true, plugin, settings, settingsError, deleted: hadDir ? DIR : null };
+    return { removed: true, plugin, settings, settingsError, ...(codex ? { codex } : {}), deleted: hadDir ? DIR : null };
   },
 
   async whoami(_p, f) {
@@ -169,6 +174,7 @@ export const COMMANDS = {
       else if (plugin.version !== VERSION)
         out(`  ${yellow("○")} The Claude Code plugin is ${plugin.version} and perhr is ${VERSION}; they're released together.${dim("  → npx perhr@latest setup --step claude")}`);
       else out(`  ${green("✓")} Claude Code plugin ${plugin.version}, the same as perhr`);
+      for (const l of codexLines()) out(l);
     }
     const d = await call("GET", "doctor");
     if (!f.json) {
@@ -706,11 +712,15 @@ export const SESSION = new Set(["start", "pause", "resume", "end", "done", "note
 export async function session(cmd, p, f) {
   const top = currentTop();
   const here = top ? gitRemote(top) : null;
-  // The plugin's hook keeps this folder's current Claude Code session; folder-only keeps the remote here too
+  // The hook keeps this folder's current session (Claude Code's, or Codex's: tool says which); folder-only keeps the remote here too
   const state = top ? repoState(top) : null;
+  // start's options typed after the reference (perhr start AUD-12 --reopen) go along with it, as they
+  // do inside one quoted string (perhr start "AUD-12 --reopen")
+  const opts = cmd === "start" ? [...(f.reopen === true ? ["--reopen"] : []), ...["title", "estimate", "priority", "notes"].filter((k) => typeof f[k] === "string").map((k) => `--${k} ${f[k]}`)] : [];
   const text = await sessionCall({
     action: cmd,
-    ...(cmd === "start" && p.length ? { ref: p.join(" ") } : {}),
+    ...(cmd === "start" && p.length ? { ref: [...p, ...opts].join(" ") } : {}),
+    ...(state?.tool && state.tool !== "claude-code" ? { tool: state.tool } : {}),
     ...((cmd === "end" || cmd === "done" || cmd === "note") && (p.length || typeof f.summary === "string") ? { summary: typeof f.summary === "string" ? f.summary : p.join(" ") } : {}),
     ...(state?.session ? { sessionId: state.session } : {}),
     ...(here ? { remote: state?.folderOnly ? "" : (here.remote ?? ""), folder: here.root.split(/[\\/]/).pop() } : {}),

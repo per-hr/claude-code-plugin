@@ -43,6 +43,8 @@ async function main() {
   // --repo <folder>: the session-start note gives Claude this, so a command lands on the right session from any folder
   if (typeof flags.repo === "string" && ["start", "pause", "resume", "end", "done", "note", "status"].includes(pos[0])) setRepo(flags.repo);
   const [cmd, ...rest] = pos;
+  // Codex's hook, run by hand (Codex itself runs the copy perhr setup --step codex puts in ~/.perhr/codex)
+  if (cmd === "hook" && rest[0] === "codex") return (await import("../lib/codex-hook.js")).run();
   if (flags.version || cmd === "version") return out(VERSION);
   if (!cmd || flags.help || cmd === "help") return out(HELP);
   let result;
