@@ -18,7 +18,7 @@ import { join } from "node:path";
 import { gitRemote } from "./git.js";
 import { DIR, repoState, stateFile, writeJsonAtomic } from "./config.js";
 
-export const HOOK_VERSION = "0.6.0";
+export const HOOK_VERSION = "0.6.1";
 const QUEUE = join(DIR, "queue.jsonl");
 const LOCK = join(DIR, "queue.lock");
 const MAX_QUEUE = 5000;
@@ -179,6 +179,39 @@ function gitBranch(top) {
   }
 }
 
+/**
+ * Codex can't reach per.hr from its sandbox, so per.hr asks it to end a reply with "per.hr note: …"
+ * (and "per.hr start: AUD-12" to start a Plan item). Only those lines are taken from the end of the
+ * turn's reply; nothing else in it is kept or sent.
+ */
+export function linesForPerhr(reply) {
+  const out = {};
+  if (typeof reply !== "string" || !reply) return out;
+  const clean = (v) => v.replace(/[*_`]+/g, "").replace(/\s+/g, " ").trim();
+  for (const line of reply.split(/\r?\n/)) {
+    const m = line.match(/^[\s>*_`-]*per\.hr (note|start)[*_`]*:[*_`]*\s*(.+)$/i);
+    if (!m) continue;
+    const v = clean(m[2]);
+    if (!v) continue;
+    // The last note in the reply wins; the first Plan item asked for
+    if (m[1].toLowerCase() === "note") out.note = v.slice(0, 2000);
+    else out.start ??= v.slice(0, 200);
+  }
+  return out;
+}
+
+/** A session command (start, note) for the session this event came from, as perhr start and perhr note send it */
+async function command(key, body, action, value) {
+  try {
+    await fetch(`${server()}/api/agent/cli`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", "User-Agent": `perhr-codex/${HOOK_VERSION}` },
+      body: JSON.stringify({ action, ...(action === "start" ? { ref: value } : { summary: value }), sessionId: body.event.session_id, tool: "codex", remote: body.remote, folder: body.folder }),
+      signal: AbortSignal.timeout(6000),
+    });
+  } catch {}
+}
+
 /** The background half: send a body that was handed over in a file (flushing what waits first) */
 async function sendLater(file) {
   let body;
@@ -191,11 +224,18 @@ async function sendLater(file) {
   }
   const key = keyOf();
   if (!key) return;
+  // The lines Codex wrote for per.hr travel beside the event, never in it
+  const after = body.after ?? null;
+  delete body.after;
   const beat = body.event?.hook_event_name === "PostToolUse";
   if (beat) return void (await post(key, body, 4000));
   if (!(await flush(key))) return queue(body);
   const r = await post(key, body, 6000);
-  if (retry(r.status)) queue(body);
+  if (retry(r.status)) return queue(body);
+  // per.hr has the turn's end: now start the Plan item asked for, then save the note. A note that
+  // can't go now isn't kept: the next turn's note covers the whole session again.
+  if (after?.start) await command(key, body, "start", after.start);
+  if (after?.note) await command(key, body, "note", after.note);
 }
 
 function inBackground(body) {
@@ -255,6 +295,11 @@ async function main() {
   if (CARRY.has(name)) {
     const usage = takeUsage(session);
     if (usage) body.usage = usage;
+  }
+  // The main agent's turn ended: the lines it wrote for per.hr, if any (a subagent's reply is its own)
+  if (name === "Stop" && !ev.agent_id) {
+    const lines = linesForPerhr(ev.last_assistant_message);
+    if (lines.note || lines.start) body.after = lines;
   }
   // For the perhr command (perhr start, end, note): this folder's current session, and that it's Codex's
   if (name !== "PostToolUse") {

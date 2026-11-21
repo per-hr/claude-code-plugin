@@ -356,7 +356,14 @@ const STEP = {
     const here = codexHere();
     if (!here.codex) out(yellow(`\nCodex hasn't run on this computer yet (there's no ${dirname(HOOKS)}). Setup adds the hooks anyway; Codex picks them up when you install it.`));
     installHook();
-    if (here.installed) {
+    if (here.installed && here.stale) {
+      out(`\nSetup updates per.hr's SessionEnd hook in ${HOOKS}: Codex allows it 3 seconds, and it asked for 10.`);
+      out(dim("  The next time you start Codex, it asks you to review that one hook again. Check it and press t."));
+      if (await confirm(f, "Update it?", !!f.yes)) {
+        const backup = addHooks();
+        out(green("Updated.") + (backup ? dim(` The previous file is saved as ${backup}.`) : ""));
+      } else out(dim("Left as it was. Codex shortens it to 3 seconds itself and notes that once at startup."));
+    } else if (here.installed) {
       out(green("\nper.hr's hooks are already in Codex's hooks.json.") + dim(" The hook itself was brought up to this version."));
     } else {
       out(`\nSetup adds to ${HOOKS}:`);
@@ -372,7 +379,7 @@ const STEP = {
       out(`  2. Press ${bold("t")} to trust all.`);
       out(dim("  Codex runs the hooks only after that. perhr doctor shows when per.hr has heard from them."));
     }
-    out(dim("\nOne difference from Claude Code: Codex's sandbox keeps it off the network, so it can't write per.hr's running summary. Write the summary when you confirm the session in To Review, or run perhr note yourself."));
+    out(dim("\nOne difference from Claude Code: Codex's sandbox keeps it off the network, so it can't run perhr commands. per.hr asks it to end each reply with a line starting \"per.hr note:\", the session's running summary, and \"per.hr start: AUD-12\" when you ask it to work on a Plan item. The hook sends only those lines; the rest of Codex's reply stays on this computer."));
   },
 
   async try() {
