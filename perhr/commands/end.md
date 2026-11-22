@@ -1,5 +1,5 @@
 ---
-description: End this session in per.hr: the work is finished. Sends it to To Review with a summary for the client
+description: End this session in per.hr: the work is finished. Sends it to Review with a summary for the client
 allowed-tools: Bash(perhr end:*), Bash(node:*)
 ---
 

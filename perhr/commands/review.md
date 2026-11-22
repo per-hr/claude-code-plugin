@@ -1,5 +1,5 @@
 ---
-description: What's waiting in per.hr's To Review, to confirm, dismiss or fix
+description: What's waiting in per.hr's Review, to confirm, dismiss or fix
 allowed-tools: Bash(perhr review:*), Bash(node:*)
 ---
 

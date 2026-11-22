@@ -18,7 +18,7 @@ import { join } from "node:path";
 import { gitRemote } from "./git.js";
 import { DIR, repoState, stateFile, writeJsonAtomic } from "./config.js";
 
-export const HOOK_VERSION = "0.6.1";
+export const HOOK_VERSION = "0.6.2";
 const QUEUE = join(DIR, "queue.jsonl");
 const LOCK = join(DIR, "queue.lock");
 const MAX_QUEUE = 5000;
@@ -247,8 +247,10 @@ function inBackground(body) {
     // The same script this run came from (the copy in ~/.perhr/codex, or perhr hook codex), told to send
     spawn(process.execPath, [...process.argv.slice(1), "--send", file], { detached: true, stdio: "ignore", windowsHide: true }).unref();
   } catch {
-    // Couldn't start the background copy: it goes out with the next event that gets through
-    queue(body);
+    // Couldn't start the background copy: it goes out with the next event that gets through. The
+    // lines Codex wrote for per.hr aren't queued with it: they travel beside an event, never in it
+    const { after, ...event } = body;
+    queue(event);
     rmSync(file, { force: true });
   }
 }

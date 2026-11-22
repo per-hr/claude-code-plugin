@@ -2,7 +2,7 @@
 
 # per.hr for Claude Code
 
-Bill clients for your Claude Code work. The plugin logs your Claude Code sessions in [per.hr](https://per.hr): your time, agent time, compute and what shipped, matched to the client, project and Plan item. Sessions wait in per.hr's To Review until you confirm them, so nothing reaches an invoice without you.
+Bill clients for your Claude Code work. The plugin logs your Claude Code sessions in [per.hr](https://per.hr): your time, agent time, compute and what shipped, matched to the client, project and Plan item. Sessions wait in per.hr's Review until you confirm them, so nothing reaches an invoice without you.
 
 **Beta.** The plugin works with per.hr accounts in the per.hr for AI beta.
 
@@ -32,10 +32,10 @@ Needs Node 18.17 or later and `git`.
 
 | Command | What it does |
 | --- | --- |
-| `/perhr:start PAY-214` | Work on a Plan item, or several: a range `PAY-214:216` or a list `PAY-214+PAY-220`. Switching items later sends the work so far to To Review on its own. |
+| `/perhr:start PAY-214` | Work on a Plan item, or several: a range `PAY-214:216` or a list `PAY-214+PAY-220`. Switching items later sends the work so far to Review on its own. |
 | `/perhr:status` | This session's Plan items, your time, agent time and cost so far, and anything waiting. |
-| `/perhr:end` | The work is finished: send the session to To Review now, with a one-line summary of what shipped. |
-| `/perhr:review` | What's in To Review, to confirm or dismiss. |
+| `/perhr:end` | The work is finished: send the session to Review now, with a one-line summary of what shipped. |
+| `/perhr:review` | What's in Review, to confirm or dismiss. |
 | `/perhr:setup` | Set up per.hr for AI in the chat, one step at a time. |
 | `/perhr:pause`, `/perhr:resume` | Pause and resume recording. |
 

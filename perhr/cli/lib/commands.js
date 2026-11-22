@@ -364,7 +364,7 @@ export const COMMANDS = {
     if (sub === "list") {
       const r = await call("GET", "review");
       if (!f.json) {
-        table(["ID", "When", "Project", "Hours Worked", "Agent", "What"], r.sessions.map((s) => [s.id, shortDate(s.startedAt), s.project?.name ?? "(no project)", hours(s.humanHours), hours(s.agentHours), (s.item ? `${s.item.ref ? `${s.item.ref}: ` : ""}${s.item.title}` : (s.summary ?? "").split("\n")[0]).slice(0, 60)]), "Nothing in To Review.");
+        table(["ID", "When", "Project", "Hours Worked", "Agent", "What"], r.sessions.map((s) => [s.id, shortDate(s.startedAt), s.project?.name ?? "(no project)", hours(s.humanHours), hours(s.agentHours), (s.item ? `${s.item.ref ? `${s.item.ref}: ` : ""}${s.item.title}` : (s.summary ?? "").split("\n")[0]).slice(0, 60)]), "Nothing in Review.");
       }
       return r;
     }
@@ -374,7 +374,7 @@ export const COMMANDS = {
     if (!path) throw new UsageError("perhr review | review confirm <id> | dismiss <id> | undo <id>");
     if (f["dry-run"]) return { dryRun: true, would: `${sub} ${id}` };
     const r = await call("POST", `review/${id}/${path}`, {});
-    if (!f.json) out(green({ confirm: "Confirmed.", dismiss: "Dismissed.", undo: "Back in To Review." }[sub]));
+    if (!f.json) out(green({ confirm: "Confirmed.", dismiss: "Dismissed.", undo: "Back in Review." }[sub]));
     return r;
   },
 
