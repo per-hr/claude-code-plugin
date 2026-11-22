@@ -2,6 +2,7 @@
 import { ApiError, exitCodeOf, setRepo, VERSION } from "../lib/api.js";
 import { COMMANDS, SESSION, session } from "../lib/commands.js";
 import { closeQuestions, cyan, dim, err, out, parseArgs, red, typed, UsageError } from "../lib/ui.js";
+import { maybeCheck, notice, updateCommand } from "../lib/update.js";
 
 const HELP = `perhr ${VERSION}: bill clients for your Claude Code work, from the terminal
 
@@ -11,6 +12,7 @@ Get started
   perhr login | logout       Sign this computer in or out (approve at per.hr/device)
   perhr whoami | status      Who you are, and what's waiting
   perhr doctor               Check the connection
+  perhr update [--on|--off]  Install a newer perhr now, or turn daily updates on or off
   perhr uninstall            Take per.hr off this computer (your account and data stay)
   perhr keys                 Computers and keys; perhr keys disconnect <id>
   perhr workspace [use <name>]
@@ -47,6 +49,13 @@ async function main() {
   if (cmd === "hook" && rest[0] === "codex") return (await import("../lib/codex-hook.js")).run();
   if (flags.version || cmd === "version") return out(VERSION);
   if (!cmd || flags.help || cmd === "help") return out(HELP);
+  if (cmd === "update") {
+    const r = await updateCommand(rest, flags);
+    if (flags.json && r !== undefined) process.stdout.write(JSON.stringify(r, null, 2) + "\n");
+    return;
+  }
+  // Once a day, a background check for a newer perhr (never for uninstall, which takes per.hr off)
+  if (cmd !== "uninstall") maybeCheck();
   let result;
   if (SESSION.has(cmd)) result = await session(cmd, rest, flags);
   else if (COMMANDS[cmd]) result = await COMMANDS[cmd](rest, flags);
@@ -54,12 +63,22 @@ async function main() {
   if (flags.json && result !== undefined) process.stdout.write(JSON.stringify(result, null, 2) + "\n");
 }
 
+/** A line about updates after a command, even one that failed (never with --json, in the status line or after uninstall) */
+function updateNotice() {
+  const argv = process.argv.slice(2);
+  const cmd = argv.find((a) => !a.startsWith("-"));
+  if (!cmd || argv.includes("--json") || ["statusline", "uninstall", "update", "hook", "help", "version"].includes(cmd)) return;
+  notice();
+}
+
 main()
   .then(() => {
     closeQuestions();
+    updateNotice();
   })
   .catch((e) => {
     closeQuestions();
+    updateNotice();
     const json = process.argv.includes("--json");
     if (e instanceof UsageError) {
       if (json) process.stdout.write(JSON.stringify({ error: { code: "usage", message: e.message } }) + "\n");

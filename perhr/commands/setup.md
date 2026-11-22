@@ -12,7 +12,7 @@ Help me finish setting up per.hr for AI, in this chat.
    - business: `perhr setup --step business --business-name "…" --name "…" --address "…" --email …`
    - paid: `perhr setup --step paid --stripe`, or instructions with `--zelle`, `--venmo`, `--paypal`, `--payoneer`, `--other`, or both (`--stripe` together with any of the instruction flags); ask me which
    - clients: `perhr setup --step clients --name "…" --email … --basis time|delivered --project "…"` (add `--send` to send the client's confirmation email now; ask me first)
-   - claude: `perhr setup --step claude --yes` (it changes my Claude Code settings: tell me what it adds and ask me first)
+   - claude: `perhr setup --step claude --yes --auto-update` (it changes my Claude Code settings: tell me what it adds and ask me first; also ask whether perhr should keep itself up to date, checking once a day and installing new releases in the background, and pass `--no-auto-update` if I say no)
    - repos: `perhr setup --step repos --project "…"` in the repo's folder (ask me which project)
    - check: `perhr setup --step check`; try: tell me how to record a first session
 3. Never ask me for an hourly rate in the chat and never pass one in a command: rates are typed at the keyboard. When the business step or a project needs a rate, tell me to run `perhr setup --step business` myself in a terminal.

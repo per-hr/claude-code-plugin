@@ -175,6 +175,7 @@ export const COMMANDS = {
         out(`  ${yellow("○")} The Claude Code plugin is ${plugin.version} and perhr is ${VERSION}; they're released together.${dim("  → npx perhr@latest setup --step claude")}`);
       else out(`  ${green("✓")} Claude Code plugin ${plugin.version}, the same as perhr`);
       for (const l of codexLines()) out(l);
+      out((await import("./update.js")).doctorLine());
     }
     const d = await call("GET", "doctor");
     if (!f.json) {

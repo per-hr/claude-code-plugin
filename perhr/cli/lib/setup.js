@@ -8,6 +8,7 @@ import { login } from "./login.js";
 import { bold, choose, chooseMany, confirm, cyan, dim, fromNpx, green, money, openBrowser, out, tty, typed, value, yellow } from "./ui.js";
 import { gitRemote } from "./git.js";
 import { addHooks, codexHere, COMMAND, EVENTS, HOOKS, installHook, removeHooks } from "./codex.js";
+import { askAutoUpdate } from "./update.js";
 
 // `perhr setup`: the ten steps, in a terminal with questions, or one step at a time with flags
 // (`perhr setup --step business --business-name "Studio Lark" …`), which is how /perhr:setup runs
@@ -250,6 +251,8 @@ const STEP = {
         out(yellow(`Couldn't install it. Run npm install -g perhr@${VERSION} yourself.`));
       }
     }
+    // Updates, asked once on this computer (not when running through npx: that copy doesn't stay)
+    await askAutoUpdate(f, confirm);
     // 3. The rules: reads run without asking; every change shows Claude Code's own prompt with the full command
     const p = plan();
     if (p.allow.length || p.ask.length || p.statusLine === "free") {
@@ -379,7 +382,9 @@ const STEP = {
       out(`  2. Press ${bold("t")} to trust all.`);
       out(dim("  Codex runs the hooks only after that. perhr doctor shows when per.hr has heard from them."));
     }
-    out(dim("\nOne difference from Claude Code: Codex's sandbox keeps it off the network, so it can't run perhr commands. per.hr asks it to end each reply with a line starting \"per.hr note:\", the session's running summary, and \"per.hr start: AUD-12\" when you ask it to work on a Plan item. The hook sends only those lines; the rest of Codex's reply stays on this computer."));
+    out(dim("\nCodex keeps per.hr up to date as it works: per.hr asks it to end each reply with a line starting \"per.hr note:\", which becomes the session's running summary, and \"per.hr start: AUD-12\" when you ask it to work on a Plan item. The hook sends only those lines; the rest of Codex's reply stays on this computer."));
+    // Updates, asked once on this computer; for someone with only Codex, this is where it's asked
+    await askAutoUpdate(f, confirm);
   },
 
   async try() {

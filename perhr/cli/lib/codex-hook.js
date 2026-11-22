@@ -18,7 +18,7 @@ import { join } from "node:path";
 import { gitRemote } from "./git.js";
 import { DIR, repoState, stateFile, writeJsonAtomic } from "./config.js";
 
-export const HOOK_VERSION = "0.6.2";
+export const HOOK_VERSION = "0.7.0";
 const QUEUE = join(DIR, "queue.jsonl");
 const LOCK = join(DIR, "queue.lock");
 const MAX_QUEUE = 5000;
@@ -238,6 +238,23 @@ async function sendLater(file) {
   if (after?.note) await command(key, body, "note", after.note);
 }
 
+/**
+ * Once a day at a session's start, the installed perhr checks for a newer release in the background
+ * (perhr update --background, from the PATH). This copy of the hook has no updater of its own.
+ */
+function dailyCheck() {
+  try {
+    let s = {};
+    try {
+      s = JSON.parse(readFileSync(join(DIR, "update.json"), "utf8"));
+    } catch {}
+    if (s.checkedAt && Date.now() - new Date(s.checkedAt).getTime() < 24 * 3600_000) return;
+    spawn("perhr", ["update", "--background"], { detached: true, stdio: "ignore", windowsHide: true, shell: process.platform === "win32" })
+      .on("error", () => {})
+      .unref();
+  } catch {}
+}
+
 function inBackground(body) {
   const dir = join(DIR, "codex", "outbox");
   mkdirSync(dir, { recursive: true });
@@ -311,6 +328,7 @@ async function main() {
     } catch {}
   }
   if (name !== "SessionStart") return inBackground(body);
+  dailyCheck();
 
   // The session's start: the only call Codex waits for, so per.hr can say once if it isn't recording here
   const key = keyOf();

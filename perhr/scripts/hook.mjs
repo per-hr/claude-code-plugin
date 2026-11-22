@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 import { gitRemote } from "../cli/lib/git.js";
 import { repoState, stateFile, writeJsonAtomic } from "../cli/lib/config.js";
 
-const VERSION = "0.6.2";
+const VERSION = "0.7.0";
 const HOME = process.env.PERHR_HOME || join(homedir(), ".perhr");
 const QUEUE = join(HOME, "queue.jsonl");
 const LOCK = join(HOME, "queue.lock");
@@ -180,6 +180,10 @@ async function main() {
   if (start) {
     try {
       writeJsonAtomic(join(HOME, "plugin.json"), { version: VERSION, at: body.at }, 0o644);
+    } catch {}
+    // Once a day, the background check for a newer per.hr (it never holds up the session)
+    try {
+      (await import("../cli/lib/update.js")).maybeCheck();
     } catch {}
   }
   // Anything waiting goes first, so per.hr sees events in the order they happened
