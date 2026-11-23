@@ -1,4 +1,4 @@
-<a href="https://per.hr/features/ai-assisted-development"><img src="assets/banner.jpg" alt="per.hr for AI (beta): bill clients for the work you ship with Claude Code. per.hr records your Claude Code sessions: your time, agent time, compute and what shipped." width="100%"></a>
+<a href="https://per.hr/ai"><img src="assets/banner.jpg" alt="per.hr for AI (beta): bill clients for the work you ship with Claude Code. per.hr records your Claude Code sessions: your time, agent time, compute and what shipped." width="100%"></a>
 
 # per.hr for Claude Code
 
@@ -27,6 +27,10 @@ perhr login
 At user scope the plugin runs in every repo, and per.hr records only the repos you link to a project. Each repo records to the workspace (Personal or a team) where it's linked. A key made in per.hr before the CLI (Configure → per.hr for AI, or a team's setup link) still works, in `/plugin` → Installed → perhr → Configure or in `~/.perhr/key`; this computer's own key from `perhr login` takes its place.
 
 Needs Node 18.17 or later and `git`.
+
+## Codex
+
+per.hr records Codex sessions too. Codex doesn't use this plugin: the per.hr CLI adds per.hr's hooks to Codex instead. Run `npx perhr setup` and say yes when it asks about Codex, or `perhr setup --step codex` on a computer that's already set up. The next time Codex starts, it shows the new hooks for review; look over what each one runs and approve them. Claude Code and Codex sessions record side by side. More: [per.hr With Codex](https://per.hr/ai/codex).
 
 ## Commands
 

@@ -408,12 +408,13 @@ export function codexLines() {
   return [`  ${green("✓")} Codex has run per.hr's hook (${c.heard.version}, last ${new Date(c.heard.at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}).`];
 }
 
-/** Codex is turned on for this account (before launch, by per.hr) */
+/** Codex is available to this account: everyone with per.hr for AI */
 const codexOn = async () => !!(await call("GET", "me").catch(() => null))?.ai?.codex;
 
 export async function setup(f) {
   if (f.step) {
-    if (!STEP[f.step] || (f.step === "codex" && !(await codexOn()))) throw new Error(`Steps: ${STEPS.join(", ")}.`);
+    if (!STEP[f.step]) throw new Error(`Steps: ${STEPS.join(", ")}, codex.`);
+    if (f.step === "codex" && !f.remove && !(await codexOn())) throw new Error("Codex recording comes with per.hr for AI. Request access at https://per.hr/request-ai, then run this again.");
     const s = f.step === "account" ? null : await call("GET", "setup");
     await STEP[f.step](f, s);
     return f.json ? call("GET", "setup") : undefined;

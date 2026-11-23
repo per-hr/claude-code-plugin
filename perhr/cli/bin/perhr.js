@@ -4,11 +4,12 @@ import { COMMANDS, SESSION, session } from "../lib/commands.js";
 import { closeQuestions, cyan, dim, err, out, parseArgs, red, typed, UsageError } from "../lib/ui.js";
 import { maybeCheck, notice, updateCommand } from "../lib/update.js";
 
-const HELP = `perhr ${VERSION}: bill clients for your Claude Code work, from the terminal
+const HELP = `perhr ${VERSION}: bill clients for your Claude Code and Codex work, from the terminal
 
 Get started
   npx perhr setup            Set up per.hr for AI, step by step
   perhr setup status         What's done and what's next
+  perhr setup --step codex   Add per.hr's hooks to Codex (--remove takes them out)
   perhr login | logout       Sign this computer in or out (approve at per.hr/device)
   perhr whoami | status      Who you are, and what's waiting
   perhr doctor               Check the connection
@@ -37,7 +38,7 @@ Sessions (also /perhr:start and the rest in Claude Code)
 
 Every command takes --json. Writes take --dry-run. Rates are typed at the keyboard.
 Sends are approved in your browser on per.hr; --test sends a copy to you only.
-Docs: ${"https://per.hr/docs/claude-code"}`;
+Docs: ${"https://per.hr/docs/claude-code"} · Codex: ${"https://per.hr/ai/codex"}`;
 
 async function main() {
   const argv = process.argv.slice(2);
