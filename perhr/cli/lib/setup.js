@@ -7,7 +7,7 @@ import { apiBase, DIR, loadKey, saveConfig } from "./config.js";
 import { login } from "./login.js";
 import { bold, choose, chooseMany, confirm, cyan, dim, fromNpx, green, money, openBrowser, out, tty, typed, value, yellow } from "./ui.js";
 import { gitRemote } from "./git.js";
-import { addHooks, codexHere, COMMAND, EVENTS, HOOKS, installHook, removeHooks } from "./codex.js";
+import { addHooks, codexHere, COMMAND, EVENTS, HOOK_NAME, HOOKS, installHook, removeHooks } from "./codex.js";
 import { askAutoUpdate } from "./update.js";
 
 // `perhr setup`: the ten steps, in a terminal with questions, or one step at a time with flags
@@ -359,7 +359,14 @@ const STEP = {
     const here = codexHere();
     if (!here.codex) out(yellow(`\nCodex hasn't run on this computer yet (there's no ${dirname(HOOKS)}). Setup adds the hooks anyway; Codex picks them up when you install it.`));
     installHook();
-    if (here.installed && here.stale) {
+    if (here.installed && here.unnamed) {
+      out(`\nSetup names per.hr's hooks in ${HOOKS}, so Codex lists each one as "${HOOK_NAME}" where it said Unnamed hook.`);
+      out(dim("  The next time you start Codex, it asks you to review them again. Check them and press t. Recording picks up from there."));
+      if (await confirm(f, "Update them?", !!f.yes)) {
+        const backup = addHooks();
+        out(green("Updated.") + (backup ? dim(` The previous file is saved as ${backup}.`) : ""));
+      } else out(dim("Left as they were. They keep recording, listed as Unnamed hook."));
+    } else if (here.installed && here.stale) {
       out(`\nSetup updates per.hr's SessionEnd hook in ${HOOKS}: Codex allows it 3 seconds, and it asked for 10.`);
       out(dim("  The next time you start Codex, it asks you to review that one hook again. Check it and press t."));
       if (await confirm(f, "Update it?", !!f.yes)) {
@@ -378,7 +385,7 @@ const STEP = {
     }
     if (!here.heard) {
       out(`\nThe next time you start Codex, it shows ${bold("Hooks need review")}:`);
-      out(`  1. Choose ${bold("Review hooks")} and check that each one runs ${COMMAND}.`);
+      out(`  1. Choose ${bold("Review hooks")}. per.hr's are named "${HOOK_NAME}"; check that each one runs ${COMMAND}.`);
       out(`  2. Press ${bold("t")} to trust all.`);
       out(dim("  Codex runs the hooks only after that. perhr doctor shows when per.hr has heard from them."));
     }

@@ -13,6 +13,8 @@ export const HOOKS = join(CODEX_HOME, "hooks.json");
 const HOOK_DIR = join(DIR, "codex");
 export const ENTRY = join(HOOK_DIR, "hook.mjs");
 export const EVENTS = ["SessionStart", "UserPromptSubmit", "PostToolUse", "PostModelRequest", "SubagentStart", "SubagentStop", "Stop", "SessionEnd"];
+/** What Codex calls each of per.hr's hooks on its review screen (without it, "Unnamed hook") */
+export const HOOK_NAME = "per.hr session recording";
 /** The command Codex runs. It never changes between versions, so Codex's trust in it carries over. */
 export const COMMAND = `node "${ENTRY.replace(/\\/g, "/")}"`;
 const LIB = ["codex-hook.js", "config.js", "git.js"];
@@ -37,7 +39,9 @@ export function codexHere() {
   } catch {}
   // Set up by perhr 0.6.0, which asked Codex for 10 seconds on SessionEnd (Codex allows 3)
   const stale = (file?.hooks?.SessionEnd ?? []).some((g) => (g?.hooks ?? []).some((h) => ours(h) && h.timeout !== 3));
-  return { codex: existsSync(CODEX_HOME), installed: events.length === EVENTS.length, partly: events.length > 0 && events.length < EVENTS.length, stale, files: existsSync(ENTRY), heard };
+  // Set up before perhr 0.7.2, which didn't name its hooks
+  const unnamed = EVENTS.some((e) => (file?.hooks?.[e] ?? []).some((g) => (g?.hooks ?? []).some((h) => ours(h) && h.statusMessage !== HOOK_NAME)));
+  return { codex: existsSync(CODEX_HOME), installed: events.length === EVENTS.length, unnamed, partly: events.length > 0 && events.length < EVENTS.length, stale, files: existsSync(ENTRY), heard };
 }
 
 /** Copy the hook (and the two files it uses) to ~/.perhr/codex. Run again to update it; the command stays the same. */
@@ -60,8 +64,8 @@ export function addHooks() {
     // Codex allows a SessionEnd hook at most 3 seconds (it says so when a file asks for more)
     const timeout = e === "SessionEnd" ? 3 : 10;
     const at = groups.findIndex((g) => (g?.hooks ?? []).some(ours));
-    if (at < 0) groups.push({ hooks: [{ type: "command", command: COMMAND, timeout }] });
-    else groups[at] = { ...groups[at], hooks: groups[at].hooks.map((h) => (ours(h) ? { ...h, timeout } : h)) };
+    if (at < 0) groups.push({ hooks: [{ type: "command", command: COMMAND, timeout, statusMessage: HOOK_NAME }] });
+    else groups[at] = { ...groups[at], hooks: groups[at].hooks.map((h) => (ours(h) ? { ...h, timeout, statusMessage: HOOK_NAME } : h)) };
     file.hooks[e] = groups;
   }
   mkdirSync(CODEX_HOME, { recursive: true });
