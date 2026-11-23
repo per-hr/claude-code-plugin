@@ -22,26 +22,33 @@ const email = (v) => (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? null : "Enter an em
 const rate = (v) => (Number(v) > 0 && Number(v) <= 100000 ? null : "Enter an hourly rate, like 125.");
 
 /**
- * What this computer has, whatever the account's steps say: the plugin installed in Claude Code, and
- * per.hr's rules in its settings. per.hr marks the Claude Code step done once the account has a key,
+ * What this computer has, whatever the account's steps say: Claude Code, the plugin installed in it,
+ * and per.hr's rules in its settings. per.hr marks the Claude Code step done once the account has a key,
  * and signing in makes one, so setup looks here before skipping that step.
  */
 function claudeHere() {
+  const shell = process.platform === "win32";
+  // Claude Code itself: without it there's no plugin to install, and setup goes on with Codex
+  let claude = false;
+  try {
+    execFileSync("claude", ["--version"], { stdio: "ignore", shell });
+    claude = true;
+  } catch {}
   let plugin = false;
   try {
-    plugin = /\bperhr@perhr\b/.test(execFileSync("claude", ["plugin", "list"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], shell: process.platform === "win32" }));
+    plugin = /\bperhr@perhr\b/.test(execFileSync("claude", ["plugin", "list"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], shell }));
   } catch {}
   let rules = false;
   try {
     const p = plan();
     rules = !p.allow.length && !p.ask.length;
   } catch {}
-  return { plugin, rules };
+  return { claude, plugin, rules };
 }
 
 function line(s, here) {
   // Done on the account, but this computer doesn't have the plugin yet
-  const missing = s.id === "claude" && s.done && here && !here.plugin;
+  const missing = s.id === "claude" && s.done && here && here.claude && !here.plugin;
   const mark = !s.applies ? dim("-") : s.done && !missing ? green("✓") : yellow("○");
   return `  ${mark} ${s.applies ? s.title : dim(`${s.title} (the team's owner does this)`)}${missing ? dim("  (not on this computer yet)") : ""}`;
 }
@@ -53,9 +60,9 @@ export async function setupStatus({ json }) {
   out(bold("per.hr setup"));
   for (const st of s.steps) out(line(st, here));
   if (s.beta) out(dim(`\nper.hr for AI: ${s.beta.approval}${s.beta.trialEndsAt ? `, trial until ${String(s.beta.trialEndsAt).slice(0, 10)}` : ""}`));
-  const next = s.next ?? (here.plugin ? null : "claude");
+  const next = s.next ?? (here.plugin || !here.claude ? null : "claude");
   out(next ? `\nNext: ${cyan(typed(`perhr setup --step ${next}`))}` : `\n${green("Setup is done.")}`);
-  if (!next && !here.rules) out(dim(`per.hr's rules aren't in your Claude Code settings on this computer, so Claude Code asks before every perhr command. Add them: ${cyan("perhr setup --step claude")}`));
+  if (!next && here.claude && !here.rules) out(dim(`per.hr's rules aren't in your Claude Code settings on this computer, so Claude Code asks before every perhr command. Add them: ${cyan("perhr setup --step claude")}`));
   return s;
 }
 
@@ -92,6 +99,20 @@ async function useTeam(f, own = false) {
   }
   saveConfig({ workspace: team.id });
   out(`Using ${bold(team.name)}. Its owner or an admin sets up the business, payments and clients; you link your code folders to its projects.`);
+}
+
+/** The perhr command in every terminal, when this run came from npx. Asked once in a run, by whichever agent's step comes first. */
+let askedCommand = false;
+async function installCommand(f) {
+  if (!fromNpx || askedCommand) return;
+  askedCommand = true;
+  if (!(await confirm(f, `Install the perhr command for every terminal (npm install -g perhr@${VERSION})?`, true))) return;
+  try {
+    execFileSync("npm", ["install", "-g", `perhr@${VERSION}`], { stdio: f.json ? "ignore" : "inherit", shell: process.platform === "win32" });
+    out(green("Installed perhr."));
+  } catch {
+    out(yellow(`Couldn't install it. Run npm install -g perhr@${VERSION} yourself.`));
+  }
 }
 
 const STEP = {
@@ -220,7 +241,7 @@ const STEP = {
     try {
       claude(["--version"], true);
     } catch {
-      throw new Error("Couldn't find claude. Install Claude Code first (https://claude.com/claude-code), then run perhr setup --step claude again.");
+      throw new Error("Couldn't find claude on this computer. Install Claude Code (https://claude.com/claude-code), then run perhr setup --step claude again. For Codex, run perhr setup --step codex.");
     }
     try {
       // Adding the marketplace again is harmless; update fetches the newest plugin version
@@ -243,14 +264,7 @@ const STEP = {
     // Claude Code's installer notes any plugin option left unset; the only one here is the optional key
     if (!f.json) out(dim("If Claude Code noted an option that isn't set, that's the plugin's optional per.hr key. Leave it empty; signing in gives this computer a key of its own."));
     // 2. The perhr command in every terminal (and for the status line), when this run came from npx
-    if (fromNpx && (await confirm(f, `Install the perhr command for every terminal (npm install -g perhr@${VERSION})?`, true))) {
-      try {
-        execFileSync("npm", ["install", "-g", `perhr@${VERSION}`], { stdio: f.json ? "ignore" : "inherit", shell: process.platform === "win32" });
-        out(green("Installed perhr."));
-      } catch {
-        out(yellow(`Couldn't install it. Run npm install -g perhr@${VERSION} yourself.`));
-      }
-    }
+    await installCommand(f);
     // Updates, asked once on this computer (not when running through npx: that copy doesn't stay)
     await askAutoUpdate(f, confirm);
     // 3. The rules: reads run without asking; every change shows Claude Code's own prompt with the full command
@@ -291,7 +305,7 @@ const STEP = {
 
   async repos(f, s) {
     const here = gitRemote();
-    out(dim("These are the git folders on this computer where you run Claude Code. per.hr never reads your code; it records which folder a session ran in."));
+    out(dim("These are the git folders on this computer where you run Claude Code or Codex. per.hr never reads your code; it records which folder a session ran in."));
     const repo = f.repo ?? here?.repo;
     if (!repo) throw new Error("Run this inside a git folder, or pass --repo owner/name.");
     let projects = (s.projects ?? []).map((p) => ({ ...p, ws: undefined, repos: s.repos ?? [] }));
@@ -339,14 +353,17 @@ const STEP = {
     for (const c of d.checks) out(`  ${c.ok ? green("✓") : yellow("○")} ${c.message}${c.ok || !c.fix ? "" : dim(`  → ${c.fix}`)}`);
     // On this computer: the plugin writes ~/.perhr/plugin.json when it starts its first Claude Code session
     const here = claudeHere();
-    if (!here.plugin) out(`  ${yellow("○")} The Claude Code plugin isn't installed on this computer.${dim("  → perhr setup --step claude")}`);
+    if (!here.claude) {
+      // No Claude Code here: nothing to say about its plugin, unless Codex isn't set up either
+      if (!codexHere().installed) out(`  ${yellow("○")} Neither Claude Code's plugin nor Codex's hooks are set up on this computer.${dim("  → perhr setup --step claude, or perhr setup --step codex")}`);
+    } else if (!here.plugin) out(`  ${yellow("○")} The Claude Code plugin isn't installed on this computer.${dim("  → perhr setup --step claude")}`);
     else if (!existsSync(join(DIR, "plugin.json"))) out(`  ${yellow("○")} The plugin is installed and hasn't started a session yet. Start Claude Code in a linked folder and send a message.`);
     else out(`  ${green("✓")} The Claude Code plugin has started a session on this computer.`);
     for (const l of codexLines()) out(l);
   },
 
-  // Codex, before launch: only for accounts per.hr has turned it on for (GET me says ai.codex). Not one
-  // of the listed steps, and refused like an unknown step for everyone else.
+  // Codex, for accounts with per.hr for AI (GET me says ai.codex). Run by the agents step beside
+  // Claude Code's, or on its own with --step codex; refused like an unknown step for everyone else.
   async codex(f) {
     if (f.remove) {
       const n = removeHooks();
@@ -386,19 +403,31 @@ const STEP = {
     if (!here.heard) {
       out(`\nThe next time you start Codex, it shows ${bold("Hooks need review")}:`);
       out(`  1. Choose ${bold("Review hooks")}. per.hr's are named "${HOOK_NAME}"; check that each one runs ${COMMAND}.`);
-      out(`  2. Press ${bold("t")} to trust all.`);
+      out(`  2. Press ${bold("t")} to approve them all.`);
       out(dim("  Codex runs the hooks only after that. perhr doctor shows when per.hr has heard from them."));
     }
     out(dim("\nCodex keeps per.hr up to date as it works: per.hr asks it to end each reply with a line starting \"per.hr note:\", which becomes the session's running summary, and \"per.hr start: AUD-12\" when you ask it to work on a Plan item. The hook sends only those lines; the rest of Codex's reply stays on this computer."));
-    // Updates, asked once on this computer; for someone with only Codex, this is where it's asked
+    // The perhr command and updates, each asked once; for someone with only Codex, this is where they're asked
+    await installCommand(f);
     await askAutoUpdate(f, confirm);
   },
 
   async try() {
-    out("In Claude Code, in a linked folder:");
-    out(`  1. Ask for a small change.`);
-    out(`  2. Run ${cyan("/perhr:end")} when it's done.`);
-    out(`  3. Open ${cyan("perhr review")} to see the session.`);
+    const claude = claudeHere().claude;
+    const codex = codexHere().installed;
+    // Each agent set up on this computer, in the same three lines; Claude Code's when setup can't tell
+    if (claude || !codex) {
+      out("In Claude Code, in a linked folder:");
+      out(`  1. Ask for a small change.`);
+      out(`  2. Run ${cyan("/perhr:end")} when it's done.`);
+      out(`  3. Open ${cyan("perhr review")} to see the session.`);
+    }
+    if (codex) {
+      out(`${claude ? "\n" : ""}In Codex, in a linked folder:`);
+      out(`  1. Ask for a small change.`);
+      out(`  2. Run ${cyan(typed("perhr end"))} in a terminal in that folder when it's done.`);
+      out(`  3. Open ${cyan("perhr review")} to see the session.`);
+    }
   },
 
   async done() {
@@ -411,7 +440,7 @@ export function codexLines() {
   const c = codexHere();
   if (!c.installed && !c.partly && !c.files) return [];
   if (!c.installed) return [`  ${yellow("○")} per.hr's Codex hooks are missing from ${HOOKS}.${dim("  → perhr setup --step codex")}`];
-  if (!c.heard) return [`  ${yellow("○")} per.hr's hooks are in Codex and haven't run yet. Start Codex, choose Review hooks, check them, and press t to trust all.`];
+  if (!c.heard) return [`  ${yellow("○")} per.hr's hooks are in Codex and haven't run yet. Start Codex, choose Review hooks, check them, and press t to approve them all.`];
   return [`  ${green("✓")} Codex has run per.hr's hook (${c.heard.version}, last ${new Date(c.heard.at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}).`];
 }
 
@@ -436,18 +465,44 @@ export async function setup(f) {
   for (const step of STEPS) {
     const s = await call("GET", "setup");
     const st = s.steps.find((x) => x.id === step);
-    // The Claude Code step also runs when this computer is missing the plugin or the rules
-    const here = step === "claude" ? claudeHere() : null;
-    const needed = !!here && (!here.plugin || !here.rules);
-    if (!st?.applies || (st.done && step !== "check" && !needed)) continue;
+    if (!st?.applies) continue;
+    if (step === "claude") {
+      await agents(f, s, st);
+      continue;
+    }
+    if (st.done && step !== "check") continue;
     out(`\n${bold(st.title)}`);
     if ((await STEP[step](f, s)) === "stop") break;
   }
-  // Codex, for accounts it's turned on for, when this computer doesn't have per.hr's hooks yet
-  if ((await codexOn()) && !codexHere().installed) {
-    out(`\n${bold("Codex")}`);
-    if (await confirm(f, "Set up Codex on this computer too?", false)) await STEP.codex(f);
+}
+
+/**
+ * The agents step: each agent found on this computer gets its part, in the same way. Claude Code's
+ * plugin and rules where claude runs here; Codex's hooks where Codex has run here (for accounts with
+ * per.hr for AI). An agent that isn't on this computer is named with the command that adds it later,
+ * and never stops setup.
+ */
+async function agents(f, s, st) {
+  const claude = claudeHere();
+  const codex = (await codexOn()) ? codexHere() : null;
+  const doClaude = claude.claude && (!st.done || !claude.plugin || !claude.rules);
+  const doCodex = !!codex?.codex && !codex.installed;
+  // Both already set up here, or nothing on this computer to say anything about
+  if (!doClaude && !doCodex && (claude.claude || codex?.installed)) return;
+  out(`\n${bold(st.title)}`);
+  if (!claude.claude && !codex?.codex && !codex?.installed) {
+    out(yellow(codex ? "Neither Claude Code nor Codex was found on this computer." : "Claude Code wasn't found on this computer."));
+    out(`Install ${codex ? "one" : "it"}, then run ${cyan(typed("perhr setup"))} again. Setup goes on with the rest meanwhile.`);
+    return;
   }
+  if (doClaude) {
+    out(bold("Claude Code"));
+    await STEP.claude(f, s);
+  } else if (!claude.claude) out(dim(`Claude Code isn't on this computer, so setup leaves its plugin out. Add it later with ${typed("perhr setup --step claude")}.`));
+  if (doCodex) {
+    out(`${doClaude ? "\n" : ""}${bold("Codex")}`);
+    await STEP.codex(f);
+  } else if (codex && !codex.codex && !codex.installed) out(dim(`Codex hasn't run on this computer, so setup leaves its hooks out. Add them later with ${typed("perhr setup --step codex")}.`));
 }
 
 export { money };
