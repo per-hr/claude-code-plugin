@@ -48,6 +48,15 @@ export async function statusline() {
   const parts = [];
   if (s.session) parts.push(`${s.session.status === "paused" ? "❚❚" : "●"} ${s.session.item ?? "recording"}`);
   parts.push(`today ${h(s.today.hoursWorked)}`);
-  if (s.waiting.length) parts.push(`${s.waiting.length} waiting`);
+  // What's waiting, by name ("1 to review · 1 address unconfirmed"); a server from before kinds says how many
+  for (const w of s.waiting) {
+    const n = Number(w.count) || 1;
+    const label = w.kind === "review" ? `${n} to review` : w.kind === "addresses" ? `${n} ${n === 1 ? "address" : "addresses"} unconfirmed` : w.kind === "setup" ? "setup unfinished" : w.kind === "approval" ? "AI approval pending" : null;
+    if (!label) {
+      parts.push(`${s.waiting.length} waiting`);
+      break;
+    }
+    parts.push(label);
+  }
   process.stdout.write(`per.hr ${parts.join(" · ")}`);
 }
