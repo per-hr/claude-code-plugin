@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 import { gitRemote } from "../cli/lib/git.js";
 import { repoState, stateFile, writeJsonAtomic } from "../cli/lib/config.js";
 
-const VERSION = "0.7.4";
+const VERSION = "0.7.5";
 const HOME = process.env.PERHR_HOME || join(homedir(), ".perhr");
 const QUEUE = join(HOME, "queue.jsonl");
 const LOCK = join(HOME, "queue.lock");
@@ -159,7 +159,14 @@ async function main() {
     folder: top.split(/[\\/]/).filter(Boolean).pop() ?? "",
     branch,
     at: new Date().toISOString(),
-    event: { session_id: session, hook_event_name: event, agent_id: String(input.agent_id ?? "") },
+    event: {
+      session_id: session,
+      hook_event_name: event,
+      agent_id: String(input.agent_id ?? ""),
+      // A turn's end: how many background tasks (shells, background agents) are still running. Only the
+      // count leaves this computer; their commands and descriptions stay here. Claude Code 2.1.145 and later.
+      ...(event === "Stop" && Array.isArray(input.background_tasks) ? { background: input.background_tasks.filter((t) => t && t.status === "running").length } : {}),
+    },
   };
 
   // The heartbeat: sent once, never queued (a late one says nothing), and nothing else changes
