@@ -5,17 +5,21 @@
 // one that gets through, sent with the key this computer has then.
 // While Claude uses tools, a heartbeat goes out every few minutes (PostToolUse), so a long turn isn't
 // taken for a stuck one: the same fields, nothing about the tool, and it's never queued.
+// Started in a folder that holds several repos (a multi-root workspace), it also says which of those
+// repos the session changes: when Claude edits or writes a file, the repo it's in is worked out here
+// and only that repo's name and branch are sent (once per repo and branch), never the file's path. At
+// each turn's end, the count of new commits in each of those repos goes too.
 // The reply is printed for SessionStart, and for a prompt when per.hr sends a reminder; Claude Code
 // shows it to Claude as context.
-import { closeSync, existsSync, openSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync, appendFileSync, mkdirSync } from "node:fs";
+import { closeSync, existsSync, openSync, readFileSync, readdirSync, rmSync, statSync, utimesSync, writeFileSync, appendFileSync, mkdirSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { gitRemote } from "../cli/lib/git.js";
+import { childRepos, commitsSince, gitRemote, headOf, normalizeRepo, repoOfFile } from "../cli/lib/git.js";
 import { repoState, stateFile, writeJsonAtomic } from "../cli/lib/config.js";
 
-const VERSION = "0.7.6";
+const VERSION = "0.7.7";
 const HOME = process.env.PERHR_HOME || join(homedir(), ".perhr");
 const QUEUE = join(HOME, "queue.jsonl");
 const LOCK = join(HOME, "queue.lock");
@@ -143,14 +147,20 @@ async function main() {
   const session = String(input.session_id ?? "");
   if (!event || !session) return;
   const beat = event === "PostToolUse";
-  if (beat && !beatDue(session)) return;
   const dir = process.env.CLAUDE_PROJECT_DIR || input.cwd || process.cwd();
+  // A file edited in a folder of repos: say which repo it's in (from what session start kept)
+  if (beat) await touched(server, k.key, input, session, dir);
+  if (beat && !beatDue(session)) return;
   const g = gitRemote(dir);
   const top = g?.root ?? dir;
   const folderOnly = ["true", "1"].includes(env("CLAUDE_PLUGIN_OPTION_FOLDER_ONLY", "CLAUDE_PLUGIN_OPTION_folder_only")) || existsSync(join(HOME, "folder-only"));
   const branch = g ? gitBranch(top) : "";
   // Only yes or no: whether the prompt was one of this plugin's commands. The prompt never leaves.
   const command = event === "UserPromptSubmit" && /^\s*\/perhr:/.test(String(input.prompt ?? ""));
+  // A folder of repos: the repos in it, and (at a turn's end) new commits in each since the session began
+  const kept = !g ? repoState(top) : null;
+  const children = !g && event === "SessionStart" ? childRepos(top).map((c) => ({ ...c, repo: folderOnly ? normalizeRepo("", c.root) : c.repo })) : null;
+  const repos = !g && event === "Stop" && kept?.session === session ? newCommits(kept) : null;
   const body = {
     tool: "claude-code",
     plugin: VERSION,
@@ -167,6 +177,8 @@ async function main() {
       // count leaves this computer; their commands and descriptions stay here. Claude Code 2.1.145 and later.
       ...(event === "Stop" && Array.isArray(input.background_tasks) ? { background: input.background_tasks.filter((t) => t && t.status === "running").length } : {}),
     },
+    // Each repo in the folder with new commits this session: its name, branch and how many (plugin 0.7.7)
+    ...(repos?.length ? { repos } : {}),
   };
 
   // The heartbeat: sent once, never queued (a late one says nothing), and nothing else changes
@@ -179,7 +191,16 @@ async function main() {
   try {
     const was = repoState(top) ?? {};
     const next = { session, folderOnly, ...(k.own ? {} : { key: k.key }), at: body.at };
-    if (was.session !== next.session || was.key !== next.key || was.folderOnly !== next.folderOnly) writeJsonAtomic(stateFile(top), next);
+    if (children?.length) {
+      // A folder of repos: the repos and where each one's branch stood when the session began (kept
+      // when the same session starts again, after /clear or a resume)
+      const same = was.session === session && was.heads;
+      Object.assign(next, { children, heads: same ? was.heads : Object.fromEntries(children.map((c) => [c.repo, headOf(c.root).sha])), touched: same ? (was.touched ?? []) : [], commits: same ? (was.commits ?? {}) : {} });
+      writeJsonAtomic(stateFile(top), next);
+    } else if (was.session !== next.session || was.key !== next.key || was.folderOnly !== next.folderOnly) writeJsonAtomic(stateFile(top), next);
+    else if (repos?.length) writeJsonAtomic(stateFile(top), { ...was, commits: { ...(was.commits ?? {}), ...Object.fromEntries(repos.map((r) => [r.repo, r.commits])) } });
+    // The session that last had a prompt here, for perhr run from a repo inside this folder
+    else if (event === "UserPromptSubmit") utimesSync(stateFile(top), new Date(), new Date());
   } catch {}
 
   const start = event === "SessionStart";
@@ -209,6 +230,52 @@ async function main() {
   // per.hr's reply reaches Claude as context: at session start, and with a prompt when per.hr has a
   // reminder (the running summary). A refusal is shown only at session start.
   if (r.text && (start || (event === "UserPromptSubmit" && r.status === 200))) out(withCommand(r.text, top));
+}
+
+/** The file an edit or write changed (never sent: only the repo it's in) */
+const EDITS = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit"]);
+const fileOf = (input) => (EDITS.has(String(input.tool_name ?? "")) ? String(input.tool_input?.file_path ?? input.tool_input?.notebook_path ?? "") : "");
+
+/** Claude changed a file in one of the folder's repos: send that repo and branch, once per pair */
+async function touched(server, key, input, session, dir) {
+  const file = fileOf(input);
+  if (!file) return;
+  const st = repoState(dir);
+  if (!st?.children?.length || st.session !== session) return;
+  const c = repoOfFile(st.children, file, dir);
+  if (!c) return;
+  const branch = headOf(c.root).branch;
+  const pair = `${c.repo}@${branch}`;
+  if ((st.touched ?? []).includes(pair)) return;
+  try {
+    writeJsonAtomic(stateFile(dir), { ...st, touched: [...(st.touched ?? []), pair] });
+  } catch {}
+  const body = {
+    tool: "claude-code",
+    plugin: VERSION,
+    remote: "",
+    folder: dir.split(/[\\/]/).filter(Boolean).pop() ?? "",
+    branch: "",
+    at: new Date().toISOString(),
+    event: { session_id: session, hook_event_name: "PostToolUse", agent_id: String(input.agent_id ?? "") },
+    touch: { repo: c.repo, branch },
+  };
+  const r = await post(server, key, body, 4000);
+  if (retry(r.status)) queue({ body });
+}
+
+/** Repos in the folder with new commits since the session began: [{ repo, branch, commits }], only changes */
+function newCommits(st) {
+  const out = [];
+  for (const c of st.children ?? []) {
+    const start = st.heads?.[c.repo];
+    const now = headOf(c.root);
+    if (!start || !now.sha || now.sha === start) continue;
+    const n = commitsSince(c.root, start);
+    if (n === null || n === (st.commits?.[c.repo] ?? 0)) continue;
+    out.push({ repo: c.repo, branch: now.branch, commits: n });
+  }
+  return out;
 }
 
 function gitBranch(top) {

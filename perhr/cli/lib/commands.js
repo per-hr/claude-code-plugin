@@ -2,12 +2,12 @@ import { call, currentTop, sessionCall, VERSION } from "./api.js";
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { apiBase, DIR, forgetKey, loadConfig, loadKey, repoState, saveConfig } from "./config.js";
+import { apiBase, DIR, forgetKey, loadConfig, loadKey, saveConfig, sessionState } from "./config.js";
 import { removeOurs, SETTINGS } from "./claude-settings.js";
 import { login } from "./login.js";
 import { codexLines, setup, setupStatus } from "./setup.js";
 import { codexHere, removeHooks } from "./codex.js";
-import { gitRemote } from "./git.js";
+import { childRepos, gitRemote, normalizeRepo } from "./git.js";
 import { bold, choose, confirm, cyan, dim, green, hours, money, openBrowser, out, table, tty, UsageError, value, yellow } from "./ui.js";
 
 // Each command returns data (printed as JSON with --json) and prints for people otherwise.
@@ -134,8 +134,7 @@ export const COMMANDS = {
 
   async status(p, f) {
     // In a folder Claude Code is recording: this session's Plan items, time and cost (the plugin's /perhr:status)
-    const top = currentTop();
-    const state = top ? repoState(top) : null;
+    const state = sessionState(currentTop() ?? process.cwd())?.state ?? null;
     let sessionText = null;
     if (state?.session) sessionText = (await session("status", [], { ...f, json: true }).catch(() => null))?.reply ?? null;
     if (sessionText && !f.json) out(sessionText);
@@ -304,8 +303,10 @@ export const COMMANDS = {
     }
     if (sub === "link") {
       const here = gitRemote();
-      const repo = f.repo ?? here?.repo;
-      if (!repo) throw new UsageError("Run this in a git folder, or pass --repo owner/name.");
+      // A folder that holds repos (Claude Code started there): per.hr knows it by its name
+      const folder = !here && childRepos(process.cwd()).length ? normalizeRepo("", process.cwd()) : null;
+      const repo = f.repo ?? here?.repo ?? folder;
+      if (!repo) throw new UsageError("Run this in a git folder or a folder that holds repos, or pass --repo owner/name.");
       const project = await findProject(f.project ?? p[1]);
       if (f["dry-run"]) return { dryRun: true, would: { repo, project: project.name } };
       const { repos } = await call("GET", "repos");
@@ -711,10 +712,13 @@ async function sendThings(type, refs, f) {
 export const SESSION = new Set(["start", "pause", "resume", "end", "done", "note"]);
 
 export async function session(cmd, p, f) {
-  const top = currentTop();
-  const here = top ? gitRemote(top) : null;
-  // The hook keeps this folder's current session (Claude Code's, or Codex's: tool says which); folder-only keeps the remote here too
-  const state = top ? repoState(top) : null;
+  // The hook keeps this folder's current session (Claude Code's, or Codex's: tool says which); folder-only keeps the remote here too.
+  // Outside a repo (a folder of repos) it's the folder itself; inside a repo in such a folder, whichever had the latest prompt.
+  const found = sessionState(currentTop() ?? process.cwd());
+  const top = found?.dir ?? currentTop();
+  const state = found?.state ?? null;
+  const g = top ? gitRemote(top) : null;
+  const here = g ?? (top && state?.children?.length ? { root: top, remote: "" } : null);
   // start's options typed after the reference (perhr start AUD-12 --reopen) go along with it, as they
   // do inside one quoted string (perhr start "AUD-12 --reopen")
   const opts = cmd === "start" ? [...(f.reopen === true ? ["--reopen"] : []), ...["title", "estimate", "priority", "notes"].filter((k) => typeof f[k] === "string").map((k) => `--${k} ${f[k]}`)] : [];

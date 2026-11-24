@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
-import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 // ~/.perhr: this computer's device key (credentials.json, readable only by you), settings
 // (config.json: the workspace to use), and what the Claude Code plugin keeps for each repo folder
@@ -69,3 +69,28 @@ export function writeJsonAtomic(path, value, mode = 0o600) {
 }
 
 export const apiBase = () => (process.env.PERHR_API || loadConfig().api || "https://per.hr").replace(/\/+$/, "");
+
+/**
+ * The folder whose session a perhr command belongs to, and its state: this repo (or folder), or a
+ * folder above it that Claude Code was started in (a folder of repos, with Claude since gone into one
+ * of them). When both have one, the one that last had a prompt.
+ */
+export function sessionState(start) {
+  let best = null;
+  let dir = start;
+  for (let i = 0; i < 6 && dir; i++) {
+    const st = repoState(dir);
+    if (st?.session) {
+      let at = 0;
+      try {
+        at = statSync(stateFile(dir)).mtimeMs;
+      } catch {}
+      // Above the starting folder, only a folder Claude Code was started in that holds repos
+      if ((i === 0 || st.children?.length) && (!best || at > best.at)) best = { dir, state: st, at };
+    }
+    const up = dirname(dir);
+    if (up === dir) break;
+    dir = up;
+  }
+  return best;
+}
