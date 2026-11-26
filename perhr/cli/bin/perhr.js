@@ -14,6 +14,7 @@ Get started
   perhr whoami | status      Who you are, and what's waiting
   perhr doctor               Check the connection
   perhr update [--on|--off]  Install a newer perhr now, or turn daily updates on or off
+  perhr desktop [--check]    Install per.hr Desktop (the tray app), or check its version
   perhr uninstall            Take per.hr off this computer (your account and data stay)
   perhr keys                 Computers and keys; perhr keys disconnect <id>
   perhr workspace [use <name>]

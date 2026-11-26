@@ -19,7 +19,7 @@ import { fileURLToPath } from "node:url";
 import { childRepos, commitsSince, gitRemote, headOf, normalizeRepo, repoOfFile } from "../cli/lib/git.js";
 import { repoState, stateFile, writeJsonAtomic } from "../cli/lib/config.js";
 
-const VERSION = "0.7.7";
+const VERSION = "0.8.0";
 const HOME = process.env.PERHR_HOME || join(homedir(), ".perhr");
 const QUEUE = join(HOME, "queue.jsonl");
 const LOCK = join(HOME, "queue.lock");

@@ -7,6 +7,7 @@ import { removeOurs, SETTINGS } from "./claude-settings.js";
 import { login } from "./login.js";
 import { codexLines, setup, setupStatus } from "./setup.js";
 import { codexHere, removeHooks } from "./codex.js";
+import { desktop, installedDesktop } from "./desktop.js";
 import { childRepos, gitRemote, normalizeRepo } from "./git.js";
 import { bold, choose, confirm, cyan, dim, green, hours, money, openBrowser, out, table, tty, UsageError, value, yellow } from "./ui.js";
 
@@ -174,6 +175,8 @@ export const COMMANDS = {
         out(`  ${yellow("○")} The Claude Code plugin is ${plugin.version} and perhr is ${VERSION}; they're released together.${dim("  → npx perhr@latest setup --step claude")}`);
       else out(`  ${green("✓")} Claude Code plugin ${plugin.version}, the same as perhr`);
       for (const l of codexLines()) out(l);
+      const app = installedDesktop();
+      if (app !== null) out(`  ${green("✓")} per.hr Desktop ${app || "installed"}`);
       out((await import("./update.js")).doctorLine());
     }
     const d = await call("GET", "doctor");
@@ -181,6 +184,10 @@ export const COMMANDS = {
       for (const c of d.checks) out(`  ${c.ok ? green("✓") : yellow("○")} ${c.message}${c.ok || !c.fix ? "" : dim(`  → ${c.fix}`)}`);
     }
     return { ...d, local };
+  },
+
+  async desktop(_p, f) {
+    return desktop(f);
   },
 
   async keys(p, f) {

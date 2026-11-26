@@ -9,6 +9,7 @@ import { bold, choose, chooseMany, confirm, cyan, dim, fromNpx, green, money, op
 import { gitRemote } from "./git.js";
 import { addHooks, codexHere, COMMAND, EVENTS, HOOK_NAME, HOOKS, installHook, removeHooks } from "./codex.js";
 import { askAutoUpdate } from "./update.js";
+import { desktop, offerDesktop } from "./desktop.js";
 
 // `perhr setup`: the ten steps, in a terminal with questions, or one step at a time with flags
 // (`perhr setup --step business --business-name "Studio Lark" …`), which is how /perhr:setup runs
@@ -449,7 +450,8 @@ const codexOn = async () => !!(await call("GET", "me").catch(() => null))?.ai?.c
 
 export async function setup(f) {
   if (f.step) {
-    if (!STEP[f.step]) throw new Error(`Steps: ${STEPS.join(", ")}, codex.`);
+    if (f.step === "desktop") return void (await desktop(f));
+    if (!STEP[f.step]) throw new Error(`Steps: ${STEPS.join(", ")}, codex, desktop.`);
     if (f.step === "codex" && !f.remove && !(await codexOn())) throw new Error("Codex recording comes with per.hr for AI. Request access at https://per.hr/request-ai, then run this again.");
     const s = f.step === "account" ? null : await call("GET", "setup");
     await STEP[f.step](f, s);
@@ -470,6 +472,8 @@ export async function setup(f) {
       await agents(f, s, st);
       continue;
     }
+    // per.hr Desktop, offered before the summary (when it isn't on this computer)
+    if (step === "done") await offerDesktop(f);
     if (st.done && step !== "check") continue;
     out(`\n${bold(st.title)}`);
     if ((await STEP[step](f, s)) === "stop") break;
