@@ -18,7 +18,7 @@ import { join } from "node:path";
 import { gitRemote } from "./git.js";
 import { DIR, repoState, stateFile, writeJsonAtomic } from "./config.js";
 
-export const HOOK_VERSION = "0.8.0";
+export const HOOK_VERSION = "0.9.0";
 const QUEUE = join(DIR, "queue.jsonl");
 const LOCK = join(DIR, "queue.lock");
 const MAX_QUEUE = 5000;

@@ -10,6 +10,7 @@ import { gitRemote } from "./git.js";
 import { addHooks, codexHere, COMMAND, EVENTS, HOOK_NAME, HOOKS, installHook, removeHooks } from "./codex.js";
 import { askAutoUpdate } from "./update.js";
 import { desktop, offerDesktop } from "./desktop.js";
+import { askClientPayment } from "./client-payment.js";
 
 // `perhr setup`: the ten steps, in a terminal with questions, or one step at a time with flags
 // (`perhr setup --step business --business-name "Studio Lark" …`), which is how /perhr:setup runs
@@ -222,6 +223,8 @@ const STEP = {
       { id: "delivered", label: "Agreed Hours", hint: "the hours agreed for each Plan item" },
     ]);
     await call("PATCH", `clients/${c.id}/ai`, { basis, private: f["show-ai"] ? false : true });
+    // Setup's /perhr:setup in Claude Code has no keyboard: there, the client gets the defaults
+    if (tty()) await askClientPayment(f, c);
     const project = await value(f, "project", "Project name", { fallback: name });
     let projectRate = null;
     if (tty()) projectRate = await value(f, "project-rate", "Hourly rate for this project (Enter for your default)", { required: false, check: rate });

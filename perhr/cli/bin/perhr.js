@@ -21,6 +21,7 @@ Get started
 
 Work
   perhr client list | add | show | edit | emails | archive
+  perhr client edit <client> --payment   This client's own payment details (typed at the keyboard)
   perhr project list | add
   perhr repo list | link [--project <name>]
   perhr time list | log <hours> --project <name>

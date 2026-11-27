@@ -8,6 +8,7 @@ import { login } from "./login.js";
 import { codexLines, setup, setupStatus } from "./setup.js";
 import { codexHere, removeHooks } from "./codex.js";
 import { desktop, installedDesktop } from "./desktop.js";
+import { askClientPayment, showClientPayment } from "./client-payment.js";
 import { childRepos, gitRemote, normalizeRepo } from "./git.js";
 import { bold, choose, confirm, cyan, dim, green, hours, money, openBrowser, out, table, tty, UsageError, value, yellow } from "./ui.js";
 
@@ -236,6 +237,7 @@ export const COMMANDS = {
       if (f["dry-run"]) return { dryRun: true, would: { name, email } };
       const c = await call("POST", "clients", { name, email, allowDuplicate: !!f["allow-duplicate"] });
       if (!f.json) out(green(`Added ${c.name}.`) + (email ? dim(` ${c.name} confirms ${email} before invoices email them: perhr client emails "${c.name}" --send`) : ""));
+      await askClientPayment(f, c);
       return c;
     }
     const c = await findClient(p[1]);
@@ -245,8 +247,19 @@ export const COMMANDS = {
         out(bold(full.name));
         if (full.email) out(`Email: ${full.email} ${dim(c.emailStatus)}`);
         out(`AI work billed by: ${ai.basis === "delivered" ? "Agreed Hours" : "Hours Worked"}. Keep AI Private: ${ai.private ? "on" : "off"}.`);
+        await showClientPayment(c);
       }
       return { ...full, ai };
+    }
+    if (sub === "edit" && f.payment) {
+      // Its own payment details, typed at the keyboard (never from Claude Code or a script)
+      if (!tty()) throw new UsageError("Payment details are typed at the keyboard. Run this yourself in a terminal, or use Edit Client in per.hr.");
+      if (await confirm(f, `Use your default payment details for ${c.name}? (No: enter its own)`, false)) {
+        await call("PUT", `clients/${c.id}/payment`, { paymentOwn: false }, { interactive: true });
+        if (!f.json) out(green(`${c.name} uses your default payment details.`));
+        return { paymentOwn: false };
+      }
+      return (await askClientPayment(f, c, { ask: false })) ?? { paymentOwn: false };
     }
     if (sub === "edit") {
       const ai = {};
@@ -255,7 +268,7 @@ export const COMMANDS = {
       if (f.basis) ai.basis = f.basis === "agreed" ? "delivered" : f.basis === "worked" ? "time" : f.basis;
       const fields = Object.fromEntries(["email", "company", "address", "phone"].filter((k) => typeof f[k] === "string").map((k) => [k, f[k]]));
       if (typeof f.rename === "string") fields.name = f.rename;
-      if (!Object.keys(ai).length && !Object.keys(fields).length) throw new UsageError("Nothing to change. Flags: --rename, --email, --address, --phone, --basis worked|agreed, --show-ai, --hide-ai.");
+      if (!Object.keys(ai).length && !Object.keys(fields).length) throw new UsageError("Nothing to change. Flags: --rename, --email, --address, --phone, --basis worked|agreed, --show-ai, --hide-ai, --payment.");
       if (f["dry-run"]) return { dryRun: true, client: c.name, would: { ...fields, ...ai } };
       if (Object.keys(fields).length) await call("PATCH", `clients/${c.id}`, fields);
       if (Object.keys(ai).length) await call("PATCH", `clients/${c.id}/ai`, ai);
